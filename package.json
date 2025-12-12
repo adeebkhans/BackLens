@@ -1,0 +1,13 @@
+{
+  "name": "backendlens",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "bootstrap": "pnpm install",
+    "dev:parser": "pnpm --filter parser dev",
+    "build": "pnpm -w -s -r run build"
+  },
+  "devDependencies": {
+    "pnpm": "10.24.0"
+  }
+}
