@@ -1,9 +1,19 @@
-export function hashPassword(pw: string) {
-  // fake hash
-  return `HASHED:${pw}`;
+import { hashPassword } from "../utils/crypto";
+import { saveUser, findUserById } from "../repositories/userRepository";
+import { sendWelcomeEmail } from "./emailService";
+import { logInfo } from "../utils/logger";
+
+export function createUserService(payload: any) {
+  logInfo("Creating user");
+  const hashed = hashPassword(payload.password);
+  const user = saveUser({ ...payload, password: hashed });
+
+  sendWelcomeEmail(user.email);
+
+  return user;
 }
 
-export function saveUser(u: any) {
-  // pretend DB write
-  return { id: Date.now(), ...u };
+export function getUserService(id: string) {
+  logInfo("Fetching user");
+  return findUserById(id);
 }
