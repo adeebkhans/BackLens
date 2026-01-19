@@ -1,4 +1,3 @@
-// packages/parser/src/index.ts
 import fs from "fs";
 import path from "path";
 import { parse } from "@babel/parser";
@@ -20,8 +19,26 @@ import * as t from "@babel/types";
 /* ---------------------- Types ---------------------- */
 
 type FunctionNode = {
-  id: string; // normalized id
+  id: string; // normalized id, format: filename:line:column-start-line:column-end
   name: string | null;
+  file: string; // normalized relative file
+  start: { line: number; column: number };
+  end: { line: number; column: number };
+};
+
+type ClassNode = {
+  id: string; // normalized id, format: class:filename:ClassName
+  name: string;
+  file: string; // normalized relative file
+  start: { line: number; column: number };
+  end: { line: number; column: number };
+};
+
+type MethodNode = {
+  id: string; // normalized id, format: class:filename:ClassName.methodName
+  name: string; // method name
+  className: string; // name of the class it belongs to
+  classId: string; // id of the class
   file: string; // normalized relative file
   start: { line: number; column: number };
   end: { line: number; column: number };
@@ -30,35 +47,45 @@ type FunctionNode = {
 type CallEdge = {
   from: string; // function id or file:TOPLEVEL
   to: string; // resolved function id OR placeholder
+  type?: "call" | "method_call"; // call for regular function calls, method_call for object.method()
   calleeName?: string | null;
-  resolved?: boolean;
-  external?: boolean;
-  moduleName?: string | null;
+  receiver?: string | null; // the object name otherwise null for function calls
+  method?: string | null; // the method name (ex- save in db.save())
+  resolved?: boolean; // whether the 'to' has been resolved to a real function id
+  external?: boolean; // whether the call is to an external module
+  moduleName?: string | null; // if external then module's name
 };
 
 type FileParseData = {
-  file: string; // normalized relative file
+  file: string;
   functions: FunctionNode[];
+  classes: ClassNode[];
+  methods: MethodNode[];
   calls: CallEdge[];
+  instanceMapping: Map<string, string>; // variable name -> class name (ex- "userRepo" -> "UserRepository")
   imports: Map<string, { importedName: string; source: string }>; // localName -> {importedName, source}. ex- import { hashPassword as hp } from './service' then hp is localname and hasspassword is imported name
   exports: Map<string, string[]>; // exportName -> [functionId,...] (within this file)
 };
 
 type ParseResult = {
   functions: FunctionNode[];
+  classes: ClassNode[];
+  methods: MethodNode[];
   calls: CallEdge[];
   files: string[];
+  sourceRoot: string; // absolute path to the project root (for rehydrating paths)
 };
 
 /* ---------------------- Helpers ---------------------- */
 
-// normalize file path to relative path from current working directory and use forward slashes
-function normalizeFile(file: string) {
-  const rel = path.relative(process.cwd(), path.resolve(file));
+// normalize file path to relative path from rootBase (or cwd if not provided) and use forward slashes
+function normalizeFile(file: string, rootBase?: string) {
+  const base = rootBase ?? process.cwd();
+  const rel = path.relative(base, path.resolve(file));
   return rel.split(path.sep).join("/");
 }
 
-// Recursively walks a directory, filtering by extensions and ignoring common non-source directories
+// Recursively walks a directory to record source files
 function walkDir(
   dir: string,
   exts = [".ts", ".js", ".tsx", ".jsx"],
@@ -84,17 +111,15 @@ function walkDir(
       out.push(full);
     }
   }
-
   return out;
 }
 
-
 // use node location to build an ID, then normalize file path
-function idForNode(file: string, node: t.Node) {
+function idForNode(file: string, node: t.Node, rootBase?: string) {
   const loc = node.loc;
-  if (!loc) return `${normalizeFile(file)}:unknown`;
+  if (!loc) return `${normalizeFile(file, rootBase)}:unknown`;
   const raw = `${file}:${loc.start.line}:${loc.start.column}-${loc.end.line}:${loc.end.column}`;
-  return normalizeFile(raw);
+  return normalizeFile(raw, rootBase);
 }
 
 // resolve import source (relative) to an actual file path inside project if possible
@@ -130,7 +155,7 @@ function tryResolveImportFile(baseFile: string, source: string): string | null {
 
 /* ------------------ Per-file parsing ------------------ */
 
-function parseFileDetailed(filePath: string): FileParseData {
+function parseFileDetailed(filePath: string, rootBase: string): FileParseData {
   // Parses a single file, extracting all functions, calls, imports, and exports
 
   const code = fs.readFileSync(filePath, "utf8");
@@ -147,17 +172,22 @@ function parseFileDetailed(filePath: string): FileParseData {
   });
 
   const functions: FunctionNode[] = [];
+  const classes: ClassNode[] = [];
+  const methods: MethodNode[] = [];
   const calls: CallEdge[] = [];
+  const instanceMapping: Map<string, string> = new Map(); // instance -> class name mapping
   const nodeToId = new Map<t.Node, string>();
   const imports = new Map<string, { importedName: string; source: string }>(); // localName -> {importedName, source}
   const exports = new Map<string, string[]>(); // exportName -> [functionId...]
 
   // local dedupe set so recording same node twice won't duplicate
   const recordedFunctionIds = new Set<string>();
+  const recordedClassIds = new Set<string>();
+  const recordedMethodIds = new Set<string>();
 
   // Helper to create and record a FunctionNode with built-in deduping
   function recordFunction(node: t.Function | t.ArrowFunctionExpression | t.ObjectMethod | t.ClassMethod, name: string | null) {
-    const id = idForNode(filePath, node);
+    const id = idForNode(filePath, node, rootBase);
     if (recordedFunctionIds.has(id)) {
       nodeToId.set(node, id);
       return id;
@@ -166,13 +196,57 @@ function parseFileDetailed(filePath: string): FileParseData {
     const f: FunctionNode = {
       id,
       name,
-      file: normalizeFile(filePath),
+      file: normalizeFile(filePath, rootBase),
       start: { line: loc.start.line, column: loc.start.column },
       end: { line: loc.end.line, column: loc.end.column }
     };
     functions.push(f);
     nodeToId.set(node, id);
     recordedFunctionIds.add(id);
+    return id;
+  }
+
+  // Helper to create and record a ClassNode with built-in deduping
+  function recordClass(node: t.ClassDeclaration, className: string) {
+    const id = `class:${normalizeFile(filePath, rootBase)}:${className}`;
+    if (recordedClassIds.has(id)) {
+      return id;
+    }
+    const loc = node.loc!;
+    const c: ClassNode = {
+      id,
+      name: className,
+      file: normalizeFile(filePath, rootBase),
+      start: { line: loc.start.line, column: loc.start.column },
+      end: { line: loc.end.line, column: loc.end.column }
+    };
+    classes.push(c);
+    recordedClassIds.add(id);
+    return id;
+  }
+
+  // Helper to create and record a MethodNode with built-in deduping
+  function recordMethod(node: t.ClassMethod, methodName: string, className: string, classId: string) {
+    const id = `class:${normalizeFile(filePath, rootBase)}:${className}.${methodName}`;
+    if (recordedMethodIds.has(id)) {
+      // ensure AST node maps to this method id for call attribution
+      nodeToId.set(node, id);
+      return id;
+    }
+    const loc = node.loc!;
+    const m: MethodNode = {
+      id,
+      name: methodName,
+      className,
+      classId,
+      file: normalizeFile(filePath, rootBase),
+      start: { line: loc.start.line, column: loc.start.column },
+      end: { line: loc.end.line, column: loc.end.column }
+    };
+    methods.push(m);
+    recordedMethodIds.add(id);
+    // Map this ClassMethod AST node to the method id so caller resolution uses method IDs
+    nodeToId.set(node, id);
     return id;
   }
 
@@ -228,6 +302,16 @@ function parseFileDetailed(filePath: string): FileParseData {
               }
             }
           }
+        }
+      }
+
+      // --- INSTANCE MAPPING (Variable Initialization Tracking) ---
+      if (t.isVariableDeclarator(node) && t.isNewExpression(node.init) && t.isIdentifier(node.init.callee)) {
+        // Track variable assignments like: const userRepo = new UserRepository();
+        const varName = t.isIdentifier(node.id) ? node.id.name : null;
+        const className = (node.init.callee as t.Identifier).name;
+        if (varName && className) {
+          instanceMapping.set(varName, className);
         }
       }
 
@@ -307,10 +391,27 @@ function parseFileDetailed(filePath: string): FileParseData {
         }
       }
 
-      // Case: class MyClass { myMethod() {} } or const obj = { myMethod() {} }
-      if (t.isClassMethod(node) || t.isObjectMethod(node)) {
+      // Case: object literal method: const obj = { myMethod() {} }
+      if (t.isObjectMethod(node)) {
         const name = t.isIdentifier(node.key) ? node.key.name : null;
         recordFunction(node as any, name);
+      }
+
+      // --- CLASS DECLARATION EXTRACTION ---
+      if (t.isClassDeclaration(node)) {
+        const className = node.id ? node.id.name : "AnonymousClass";
+        const classId = recordClass(node, className);
+
+        // Extract all methods from the class
+        for (const method of node.body.body) {
+          if (t.isClassMethod(method)) {
+            const methodName = t.isIdentifier(method.key) ? method.key.name : null;
+            if (methodName) {
+              // Record only as method; avoid creating duplicate function nodes
+              recordMethod(method, methodName, className, classId);
+            }
+          }
+        }
       }
 
       // ------- CALL EXTRACT ------
@@ -341,19 +442,34 @@ function parseFileDetailed(filePath: string): FileParseData {
             // If not previously recorded, record it now
             const loc = n.loc;
             if (loc) {
-              fromId = idForNode(filePath, n);
-              nodeToId.set(n, fromId);
-              // ensure functions list has it (dedup considered) ie. added to the global list of functions if it's new
-              if (!recordedFunctionIds.has(fromId)) {
-                const name = (t.isFunctionDeclaration(n) && n.id) ? n.id.name : null;
-                functions.push({
-                  id: fromId,
-                  name,
-                  file: normalizeFile(filePath),
-                  start: { line: loc.start.line, column: loc.start.column },
-                  end: { line: loc.end.line, column: loc.end.column }
-                });
-                recordedFunctionIds.add(fromId);
+              if (t.isClassMethod(n)) {
+                // Class methods should use the method node id (set in recordMethod).
+                const existing = nodeToId.get(n);
+                if (existing) {
+                  fromId = existing;
+                } else {
+                  // Fallback: derive method id heuristically
+                  const clsDecl = path.findParent((p) => p.isClassDeclaration())?.node as t.ClassDeclaration | undefined;
+                  const className = clsDecl && clsDecl.id ? clsDecl.id.name : "AnonymousClass";
+                  const methodName = t.isIdentifier((n as any).key) ? ((n as any).key as t.Identifier).name : "anonymous";
+                  fromId = `class:${normalizeFile(filePath, rootBase)}:${className}.${methodName}`;
+                  nodeToId.set(n, fromId!);
+                }
+              } else {
+                fromId = idForNode(filePath, n, rootBase);
+                nodeToId.set(n, fromId);
+                // ensure functions list has it ie. added to the global list of functions if it's new
+                if (!recordedFunctionIds.has(fromId)) {
+                  const name = (t.isFunctionDeclaration(n) && n.id) ? n.id.name : null;
+                  functions.push({
+                    id: fromId,
+                    name,
+                    file: normalizeFile(filePath, rootBase),
+                    start: { line: loc.start.line, column: loc.start.column },
+                    end: { line: loc.end.line, column: loc.end.column }
+                  });
+                  recordedFunctionIds.add(fromId);
+                }
               }
               break;
             }
@@ -364,23 +480,42 @@ function parseFileDetailed(filePath: string): FileParseData {
         // Determine the name of the function being called (the 'callee')
         let calleeName: string | null = null;
         let calleeObject: string | null = null; // for namespace/member resolution (e.g., 'svc' in svc.saveUser)
+        let receiver: string | null = null; // the object name for method calls (e.g., 'res', 'userService')
+        let method: string | null = null; // the method name for method calls (e.g., 'json', 'save')
+        let callType: "call" | "method_call" = "call"; // default to regular call
         const c = node.callee; // The expression being called (the part before the parenthesis)
+
         if (t.isIdentifier(c)) {
           calleeName = c.name; // e.g., 'hashPassword()' -> calleeName = 'hashPassword'
         } else if (t.isMemberExpression(c)) {
           // e.g., 'userSvc.saveUser()' -> calleeName = 'saveUser', calleeObject = 'userSvc'
-          if (t.isIdentifier(c.property)) calleeName = c.property.name;
-          if (t.isIdentifier(c.object)) calleeObject = c.object.name;
+          // OR 'res.json()' -> receiver = 'res', method = 'json'
+          if (t.isIdentifier(c.property)) {
+            method = c.property.name; // The method/property being called
+            calleeName = c.property.name; // Also set calleeName for compatibility
+          }
+          if (t.isIdentifier(c.object)) {
+            receiver = c.object.name; // The object on which the method is called
+            calleeObject = c.object.name; // Also set calleeObject for compatibility
+          }
+          callType = "method_call"; // Mark this as a method call
         }
 
         // Create a temporary ID placeholder for the 'to' side of the call (the callee target)
         // Format: placeholder::<relative file>::<callee name>::<line number>
         // This temporary ID will be resolved to a final function ID in the next processing phase (Pass 2)
-        const pl = `placeholder::${normalizeFile(filePath)}::${calleeName ?? "anonymous"}::${node.loc ? node.loc.start.line : 0}`;
+        const pl = `placeholder::${normalizeFile(filePath, rootBase)}::${calleeName ?? "anonymous"}::${node.loc ? node.loc.start.line : 0}`;
+
+        // Note: External module detection for method calls (e.g., jwt.sign()) is done in Pass 2
+        // after all imports are collected, to handle any AST traversal order issues
+
         calls.push({
-          from: fromId ?? `${normalizeFile(filePath)}:TOPLEVEL`,
+          from: fromId ?? `${normalizeFile(filePath, rootBase)}:TOPLEVEL`,
           to: pl,
+          type: callType,
           calleeName,
+          receiver,
+          method,
           resolved: false // Explicitly marked as unresolved, awaiting Pass 2
         });
       }
@@ -409,9 +544,12 @@ function parseFileDetailed(filePath: string): FileParseData {
 
   // This structure will be consumed by a subsequent "Pass 2" that connects these files together
   return {
-    file: normalizeFile(filePath),
+    file: normalizeFile(filePath, rootBase),
     functions,
+    classes,
+    methods,
     calls,
+    instanceMapping,
     imports,
     exports
   };
@@ -423,7 +561,10 @@ function parseFileDetailed(filePath: string): FileParseData {
 // then resolving cross-file calls in a second pass.
 
 export async function parseProject(rootPath: string): Promise<ParseResult> {
-  // Step 1: Find all relevant source files starting from the root directory
+  // Step 1: Resolve the absolute project root for consistent path normalization
+  const rootBase = path.resolve(rootPath);
+
+  // Step 2: Find all relevant source files starting from the root directory
   const files = walkDir(rootPath);
 
   // Map to hold the detailed parse data (IR) for every file, indexed by file path
@@ -432,7 +573,7 @@ export async function parseProject(rootPath: string): Promise<ParseResult> {
   // PASS 1: Parse all files and collect data locally within each file (Functions, Imports, Exports, Calls w/ placeholders)
   for (const f of files) {
     try {
-      const pd = parseFileDetailed(f);
+      const pd = parseFileDetailed(f, rootBase);
       fileData.set(pd.file, pd);
     } catch (err) {
       console.error(`Failed to parse ${f}:`, (err as Error).message);
@@ -462,9 +603,35 @@ export async function parseProject(rootPath: string): Promise<ParseResult> {
     }
   }
 
+  // Build a method registry for resolving method calls (className.methodName -> MethodNode)
+  // Also build instance->class mapping across all files for resolving obj.method() calls
+  const methodRegistry = new Map<string, MethodNode[]>(); // "ClassName.methodName" -> [MethodNode]
+  const globalInstanceMapping = new Map<string, string>(); // variable name -> class name (across files)
+  for (const pd of fileData.values()) {
+    for (const method of pd.methods) {
+      // Register by "ClassName.methodName"
+      const key = `${method.className}.${method.name}`;
+      const arr = methodRegistry.get(key) || [];
+      arr.push(method);
+      methodRegistry.set(key, arr);
+      // Also register just by method name for fallback
+      const nameArr = methodRegistry.get(method.name) || [];
+      nameArr.push(method);
+      methodRegistry.set(method.name, nameArr);
+    }
+    // Merge instance mappings from all files
+    for (const [varName, className] of pd.instanceMapping.entries()) {
+      globalInstanceMapping.set(varName, className);
+    }
+  }
+
   // Initialize final output arrays, preparing for deduplication across all files
   const seenFunctionIds = new Set<string>();
   const allFunctions: FunctionNode[] = [];
+  const seenClassIds = new Set<string>();
+  const allClasses: ClassNode[] = [];
+  const seenMethodIds = new Set<string>();
+  const allMethods: MethodNode[] = [];
   const seenCallKeys = new Set<string>();
   const allCalls: CallEdge[] = [];
 
@@ -475,6 +642,24 @@ export async function parseProject(rootPath: string): Promise<ParseResult> {
     if (seenCallKeys.has(key)) return;
     seenCallKeys.add(key);
     allCalls.push(call);
+  }
+
+  // Add all discovered classes to the final list in a deterministic order (by file path)
+  for (const pd of fileData.values()) {
+    for (const cls of pd.classes) {
+      if (seenClassIds.has(cls.id)) continue;
+      seenClassIds.add(cls.id);
+      allClasses.push(cls);
+    }
+  }
+
+  // Add all discovered methods to the final list in a deterministic order (by file path)
+  for (const pd of fileData.values()) {
+    for (const method of pd.methods) {
+      if (seenMethodIds.has(method.id)) continue;
+      seenMethodIds.add(method.id);
+      allMethods.push(method);
+    }
   }
 
   // Add all discovered functions to the final list in a deterministic order (by file path)
@@ -502,6 +687,72 @@ export async function parseProject(rootPath: string): Promise<ParseResult> {
         continue;
       }
 
+      // 0) METHOD CALL RESOLUTION: If this is a method_call (obj.method()), try to resolve via instance mapping
+      if (call.type === "method_call" && call.receiver && call.method) {
+        const receiver = call.receiver;
+        const methodName = call.method;
+
+        // First check local instance mapping in current file
+        let className = pd.instanceMapping.get(receiver);
+
+        // Then check global instance mapping (cross-file)
+        if (!className) {
+          className = globalInstanceMapping.get(receiver);
+        }
+
+        // If we found the class name, try to resolve to the method ID
+        if (className) {
+          const methodKey = `${className}.${methodName}`;
+          const candidates = methodRegistry.get(methodKey) || [];
+          if (candidates.length === 1) {
+            resolvedId = candidates[0].id;
+          } else if (candidates.length > 1) {
+            // Multiple candidates - try to find one in same file
+            const sameFile = candidates.find(m => m.file === pd.file);
+            resolvedId = sameFile ? sameFile.id : candidates[0].id;
+          }
+        }
+
+        // If receiver is 'this', resolve to method in current class context
+        if (!resolvedId && receiver === "this") {
+          // Find current class context from the caller function
+          const fromId = call.from;
+          // Check if caller is a method in a class
+          for (const method of pd.methods) {
+            // If the call originates from within a method, use that class
+            if (fromId.includes(method.className)) {
+              const methodKey = `${method.className}.${methodName}`;
+              const candidates = methodRegistry.get(methodKey) || [];
+              if (candidates.length >= 1) {
+                resolvedId = candidates[0].id;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // If already resolved via method call, push and continue
+      if (resolvedId) {
+        pushCall({ ...call, to: resolvedId, resolved: true, external: false, moduleName: null });
+        continue;
+      }
+
+      // 0b) EXTERNAL METHOD CALL DETECTION: If receiver is an imported external module (e.g., jwt.sign())
+      // Check if the receiver name is imported from an external module
+      if (call.type === "method_call" && call.receiver) {
+        const receiverImport = pd.imports.get(call.receiver);
+        if (receiverImport) {
+          const src = receiverImport.source;
+          // External if source doesn't start with . or / (not a relative path)
+          if (!src.startsWith(".") && !src.startsWith("/")) {
+            // This is an external method call like jwt.sign(), bcrypt.hash(), etc.
+            pushCall({ ...call, resolved: false, external: true, moduleName: src });
+            continue;
+          }
+        }
+      }
+
       // If placeholder was a member expression and object present (e.g., svc.save),
       // attempt to resolve via namespace import: if 'svc' is a namespace import, we can't pick single function.
       // We captured calleeObject during parse only locally, available via placeholder naming? Not stored — we rely on imports map.
@@ -509,16 +760,18 @@ export async function parseProject(rootPath: string): Promise<ParseResult> {
       // 1) RESOLVE VIA IMPORT: Check if the callee name was locally imported in this file
       const importInfo = pd.imports.get(name);
       if (importInfo) {
+        // Reconstruct absolute path from project-relative pd.file using rootBase
+        const baseFileAbs = path.resolve(rootBase, pd.file);
         // If source is external (package name) -> mark external
         const src = importInfo.source;
-        const resolvedFile = tryResolveImportFile(path.resolve(process.cwd(), pd.file), src);
+        const resolvedFile = tryResolveImportFile(baseFileAbs, src);
         if (!resolvedFile) {
           // external module: tag external
           external = true;
           moduleName = src;
         } else {
           // If the import points to another internal project file, find its parse data
-          const norm = normalizeFile(resolvedFile);
+          const norm = normalizeFile(resolvedFile, rootBase);
           const targetPd = fileData.get(norm);
           if (targetPd) {
             const importedName = importInfo.importedName;
@@ -581,8 +834,11 @@ export async function parseProject(rootPath: string): Promise<ParseResult> {
   const filesList = Array.from(fileData.keys());
   return {
     functions: allFunctions,
+    classes: allClasses,
+    methods: allMethods,
     calls: allCalls,
-    files: filesList
+    files: filesList,
+    sourceRoot: rootBase // absolute path to project root for path rehydration
   };
 }
 
@@ -618,7 +874,7 @@ if (require.main === module) {
   });
 }
 
-// run 
-// pnpm --filter parser dev 
+// run
+// pnpm --filter parser dev
 // or with path
 // pnpm --filter parser dev "path/to/project"
