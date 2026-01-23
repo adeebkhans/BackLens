@@ -1,0 +1,22 @@
+{
+  "name": "graph-store",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "node -r ts-node/register ./src/index.ts",
+    "save": "node -r ts-node/register ./src/index.ts",
+    "build": "tsc -b",
+    "start": "node ./dist/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^8.4.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2",
+    "@types/node": "^20.4.1",
+    "@types/better-sqlite3": "^7.6.0"
+  }
+}
