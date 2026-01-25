@@ -69,7 +69,7 @@ export function createGraphAPI(dbPath: string): GraphAPI {
     const getNode = (id: string): GraphNode | null => nodeStore.get(id);
 
     // Fuzzy search across node IDs, labels, and common metadata; also matches receiver aliases via edges
-    const searchNodes = (q: string): GraphNode[] => {
+    const searchNodes = (q: string, options?: QueryOptions): GraphNode[] => {
         const like = `%${q}%`;
         const lowerQ = q.toLowerCase();
 
@@ -116,14 +116,16 @@ export function createGraphAPI(dbPath: string): GraphAPI {
         }
 
         // 4) Return up to 100 results
-        return Array.from(acc.values()).slice(0, 100);
+        const results = Array.from(acc.values()).slice(0, 100);
+        return options ? filterNodes(results as PersistNode[], options) : results;
     };
 
     // Get all nodes in the graph
-    const getAllNodes = (): GraphNode[] => {
+    const getAllNodes = (options?: QueryOptions): GraphNode[] => {
         const stmt = db.prepare(`SELECT id, type, label, meta FROM nodes`);
         const rows = stmt.all() as { id: string; type: string; label: string | null; meta: string | null }[];
-        return rows.map(r => ({ id: r.id, type: r.type, label: r.label, meta: r.meta ? JSON.parse(r.meta) : null }));
+        const nodes = rows.map(r => ({ id: r.id, type: r.type, label: r.label, meta: r.meta ? JSON.parse(r.meta) : null }));
+        return options ? filterNodes(nodes as PersistNode[], options) : nodes;
     };
 
     // Get all edges in the graph

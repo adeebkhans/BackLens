@@ -82,8 +82,8 @@ export type HotspotEntry = {
 export type GraphAPI = {
     // Metadata & Search
     getNode(nodeId: string): GraphNode | null; // Retrieves a single raw node
-    searchNodes(query: string): GraphNode[]; // Fuzzy search across node IDs and labels
-    getAllNodes(): GraphNode[]; // Get all nodes in the graph
+    searchNodes(query: string, options?: QueryOptions): GraphNode[]; // Fuzzy search across node IDs and labels
+    getAllNodes(options?: QueryOptions): GraphNode[]; // Get all nodes in the graph
     getAllEdges(): GraphEdge[]; // Get all edges in the graph
 
     // Direct Neighbors
