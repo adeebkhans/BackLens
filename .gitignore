@@ -1,5 +1,9 @@
 node_modules/
 dist/
 *.log
-.ir.json
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+ir.json
 dev.md
+graph.json
+graph.db
