@@ -1,2 +1,6 @@
 packages:
-  - 'packages/*'
+  - packages/*
+  - web
+
+ignoredBuiltDependencies:
+  - better-sqlite3

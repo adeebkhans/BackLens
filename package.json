@@ -8,6 +8,10 @@
     "build": "pnpm -w -s -r run build"
   },
   "devDependencies": {
+    "@types/babel__parser": "^7.1.5",
     "pnpm": "10.24.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3"]
   }
 }
