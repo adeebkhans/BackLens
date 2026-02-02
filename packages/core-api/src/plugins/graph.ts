@@ -2,7 +2,7 @@
  * GraphAPI Plugin - Provides singleton GraphAPI instance to all routes
  */
 import fp from "fastify-plugin";
-import { createGraphAPI, type GraphAPI } from "graph-store";
+import { createGraphAPI, type GraphAPI } from "@backlens/graph-store";
 import { config } from "../config/env.js";
 
 // Extend FastifyInstance to include graph property
