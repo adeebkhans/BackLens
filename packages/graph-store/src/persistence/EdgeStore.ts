@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { IDatabase, IStatement } from "./IDatabase";
 
 // Defines the structure of an edge object ready to be persisted to the database
 export type PersistEdge = {
@@ -12,19 +12,19 @@ export type PersistEdge = {
 
 // The class responsible for all interactions with the 'edges' table
 export class EdgeStore {
-  db: Database.Database;      // Property to hold the active database connection
-  insertStmt: Database.Statement; // Prepared statement for inserting/updating edges (upsert)
+  db: IDatabase;      // Property to hold the active database connection
+  insertStmt: IStatement; // Prepared statement for inserting/updating edges (upsert)
 
   // Constructor takes the active database connection instance
-  constructor(db: Database.Database) {
+  constructor(db: IDatabase) {
     this.db = db;
 
     // Prepare the SQL statement for UPSERT (Insert or Update)
     this.insertStmt = db.prepare(`
       INSERT INTO edges (from_id, to_id, type, meta)
-      VALUES (@from, @to, @type, @meta)
+      VALUES (:from, :to, :type, :meta)
       ON CONFLICT(from_id, to_id, type) DO UPDATE SET meta = excluded.meta
-      -- ON CONFLICT uses the UNIQUE constraint (from_id, to_id, type) defined in db.ts.
+      -- ON CONFLICT uses the UNIQUE constraint (from_id, to_id, type) defined.
       -- If the edge already exists, update only the 'meta' data.
     `);
   }
