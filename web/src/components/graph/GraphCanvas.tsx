@@ -64,6 +64,8 @@ export function GraphCanvas() {
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes} // uses custom renderers for different node types (func vs class vs file etc)
         fitView
+        minZoom={0.01}
+        maxZoom={4}
         attributionPosition="bottom-left"
       >
         <Background />
@@ -79,6 +81,8 @@ export function GraphCanvas() {
               default: return '#9ca3af';
             }
           }}
+          zoomable
+          pannable
         />
 
         {/* Loading toast */}
