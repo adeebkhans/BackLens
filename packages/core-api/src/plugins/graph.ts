@@ -18,7 +18,7 @@ export default fp(async (app: any) => {
   
   app.log.info(`Initializing GraphAPI with database: ${dbPath}`);
 
-  const graph = createGraphAPI(dbPath);
+  const graph = await createGraphAPI(dbPath);
 
   // Decorate Fastify instance with graph API
   app.decorate("graph", graph);
