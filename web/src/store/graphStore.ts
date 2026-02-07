@@ -5,7 +5,10 @@ import { create } from 'zustand';
 import type { Node, Edge } from 'reactflow';
 import { MarkerType } from 'reactflow';
 import type { GraphNode } from '../types/graph';
-import { graphApi } from '../api/graphApi';
+import { getGraphProvider } from '../api/createProvider';
+
+// Get the appropriate provider based on environment (HTTP or VS Code)
+const provider = getGraphProvider();
 
 // Layout constants
 const NODE_WIDTH = 250;
@@ -209,7 +212,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   loadHotspots: async (top = 10) => {
     set({ loading: true, error: null });
     try {
-      const hotspots = await graphApi.getHotspots(top, {
+      const hotspots = await provider.getHotspots(top, {
         expanded: true,
         includeTypes: ['function']
       });
@@ -253,7 +256,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       get().clearGraph();
 
       // Fetch the node details
-      const node = await graphApi.getNode(nodeId);
+      const node = await provider.getNode(nodeId);
       if (!node) {
         set({ error: 'Node not found', loading: false });
         return;
@@ -261,8 +264,8 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
       // Fetch callers and callees in parallel
       const [callersResult, calleesResult] = await Promise.all([
-        graphApi.getCallers(nodeId, { expanded: true, excludeTypes: ['file'] }),
-        graphApi.getCallees(nodeId, { expanded: true, excludeTypes: ['file'] })
+        provider.getCallers(nodeId, { expanded: true, excludeTypes: ['file'] }),
+        provider.getCallees(nodeId, { expanded: true, excludeTypes: ['file'] })
       ]);
 
       // Create center node
@@ -388,7 +391,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
     set({ loading: true });
     try {
-      const result = await graphApi.getCallers(nodeId, { expanded: true });
+      const result = await provider.getCallers(nodeId, { expanded: true });
       const callerNodes = result.expanded;
 
       // Create nodes for callers
@@ -458,7 +461,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
     set({ loading: true });
     try {
-      const result = await graphApi.getCallees(nodeId, { expanded: true });
+      const result = await provider.getCallees(nodeId, { expanded: true });
       const calleeNodes = result.expanded;
 
       // Create nodes for callees
@@ -521,7 +524,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   searchAndAddNode: async (query: string) => {
     set({ loading: true, error: null });
     try {
-      const results = await graphApi.searchNodes(query, 5);
+      const results = await provider.searchNodes(query, 5);
 
       if (results.length === 0) {
         set({ error: 'No results found', loading: false });

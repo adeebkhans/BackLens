@@ -168,3 +168,9 @@ export class VsCodeGraphProvider implements IGraphProvider {
     return this.request('getSemanticStats', {});
   }
 }
+
+// Note: The httpGraphProvider uses graphApi.ts (of web) which is a thin wrapper around fetch/axios 
+// to call the extension host's REST API endpoints.
+// In contrast, VsCodeGraphProvider uses the GraphApi instance created from core api (defined in vscode-extension\src\services\GraphService.ts)
+// and exposes it to the webview which then uses the 
+// 'postMessage' mechanism to send requests to the extension host and receive responses.
