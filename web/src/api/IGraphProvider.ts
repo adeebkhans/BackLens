@@ -107,4 +107,12 @@ export interface IGraphProvider {
    * Get semantic statistics for the graph
    */
   getSemanticStats?(): Promise<SemanticStats>;
+
+  // --- Navigation Operations (VS Code only) ---
+
+  /**
+   * Navigate to node source location in code editor
+   * Only available in VS Code webview environment
+   */
+  navigateToNode?(nodeId: string): Promise<void>;
 }

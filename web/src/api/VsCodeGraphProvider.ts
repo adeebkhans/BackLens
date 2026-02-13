@@ -167,6 +167,18 @@ export class VsCodeGraphProvider implements IGraphProvider {
   async getSemanticStats(): Promise<SemanticStats> {
     return this.request('getSemanticStats', {});
   }
+
+  // --- Navigation Operations ---
+
+  async navigateToNode(nodeId: string): Promise<void> {
+    // Direct command execution via postMessage
+    // No need for request/response pattern since navigation doesn't return data
+    this.vscode.postMessage({
+      type: 'command',
+      command: 'backlens.goToNode',
+      args: [nodeId]
+    });
+  }
 }
 
 // Note: The httpGraphProvider uses graphApi.ts (of web) which is a thin wrapper around fetch/axios 
