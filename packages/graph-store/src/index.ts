@@ -4,15 +4,26 @@ import path from "path";
 import type { IR } from "./core-ir-processor/buildGraph";
 import { buildGraph } from "./core-ir-processor/buildGraph";
 import type { Graph } from "./core-ir-processor/types";
-import { saveGraph } from "./persistence/saveGraph";
+import { saveGraph, saveGraphWasm } from "./persistence/saveToDB";
 
 /**
  * Programmatic Export
  */
 export { buildGraph };
 export type { IR };
-export { saveGraph };
-export { createGraphAPI } from "./api/createGraphAPI";
+
+// Unified save API
+export { saveGraphToDb, saveGraph, saveGraphWasm } from "./persistence/saveToDB";
+
+// Graph Query API
+export { createGraphAPI, createGraphAPIFromDb } from "./api/createGraphAPI";
+
+// Database adapters
+export type { IDatabase, IStatement, IRunResult, DatabaseFactory } from "./persistence/IDatabase";
+export { BetterSqliteAdapter } from "./persistence/BetterSqliteAdapter";
+export { WasmSqliteAdapter, createWasmSqliteAdapter } from "./persistence/WasmSqliteAdapter";
+
+// Types
 export type { GraphNode, ExpandedNode, GraphAPI } from "./api/GraphAPI";
 export type { QueryOptions } from "./api/QueryOptions";
 
@@ -22,8 +33,11 @@ export type { QueryOptions } from "./api/QueryOptions";
    1. Build graph.json from ir.json:
       node index.js build-ir <ir.json> [out.json]
 
-   2. Save graph.json into SQLite:
+  2. Save graph.json into SQLite (native):
       node index.js save-sqlite <graph.json> [graph.db]
+
+  3. Save graph.json into SQLite (WASM):
+    node index.js save-sqlite-wasm <graph.json> [graph.db]
    ============================================================*/
 
 async function cliMain() {
@@ -37,6 +51,9 @@ Usage:
 
   Save graph.json → graph.db:
     node -r ts-node/register src/index.ts save-sqlite <graph.json> [graph.db]
+
+  Save graph.json → graph.db (WASM):
+    node -r ts-node/register src/index.ts save-sqlite-wasm <graph.json> [graph.db]
 `);
     process.exit(1);
   }
@@ -102,6 +119,35 @@ Usage:
     return;
   }
 
+  /* ------------------- MODE 3: save-sqlite-wasm ------------------ */
+  if (mode === "save-sqlite-wasm") {
+    const graphPath = path.resolve(args[1]);
+    // Force output to be in the current working directory (graph-store)
+    const dbPath = args[2]
+      ? path.resolve(process.cwd(), path.basename(args[2]))
+      : path.resolve(process.cwd(), "graph.db");
+
+    if (!fs.existsSync(graphPath)) {
+      console.error("graph.json not found:", graphPath);
+      process.exit(1);
+    }
+
+    const raw = fs.readFileSync(graphPath, "utf8");
+    let graph: Graph;
+
+    try {
+      graph = JSON.parse(raw);
+    } catch (err) {
+      console.error("Failed to parse graph.json:", err);
+      process.exit(1);
+    }
+
+    console.log("Saving into SQLite (WASM):", dbPath);
+    await saveGraphWasm(graph, dbPath);
+    console.log("SQLite graph saved:", dbPath);
+    return;
+  }
+
   console.error("Unknown command:", mode);
   process.exit(1);
 }
@@ -116,3 +162,5 @@ if (require.main === module) {
 // run -
 // pnpm --filter graph-store dev -- build-ir ../parser/ir.json graph.json
 // pnpm --filter graph-store dev -- save-sqlite graph.json graph.db
+// since better-sqlite3 is a native module, if it doesnt build for you, use WASM version:
+// pnpm --filter graph-store dev -- save-sqlite-wasm graph.json graph.db

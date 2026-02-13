@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { IDatabase, IStatement } from "./IDatabase";
 
 // Defines the structure of a node object ready to be persisted to the database
 export type PersistNode = {
@@ -20,18 +20,18 @@ type NodeRow = {
 
 // The class responsible for all interactions with the 'nodes' table
 export class NodeStore {
-  db: Database.Database;      // Property to hold the active database connection
-  insertStmt: Database.Statement; // Prepared statement for inserting/updating nodes (upsert)
-  selectStmt: Database.Statement; // Prepared statement for selecting a node by ID
+  db: IDatabase;      // Property to hold the active database connection
+  insertStmt: IStatement; // Prepared statement for inserting/updating nodes (upsert)
+  selectStmt: IStatement; // Prepared statement for selecting a node by ID
 
   // Constructor takes the active database connection instance
-  constructor(db: Database.Database) {
+  constructor(db: IDatabase) {
     this.db = db;
 
     // Prepare the SQL statement for UPSET (Insert or Update)
     this.insertStmt = db.prepare(`
       INSERT INTO nodes (id, type, label, meta)
-      VALUES (@id, @type, @label, @meta)
+      VALUES (:id, :type, :label, :meta)
       ON CONFLICT(id) DO UPDATE SET       -- If a node with the same 'id' already exists...
       type=excluded.type,                 -- ...update the 'type' field
       label=excluded.label,               -- ...update the 'label' field

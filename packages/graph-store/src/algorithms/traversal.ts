@@ -1,11 +1,11 @@
-import Database from "better-sqlite3";
+import { IDatabase } from "../persistence/IDatabase";
 
 /**
  * Small helpers that query the edges table to get direct neighbors.
  * The functions are synchronous and lightweight (using prepared statements).
  */
 
-export function createTraversalHelpers(db: Database.Database) {
+export function createTraversalHelpers(db: IDatabase) {
   // prepared statements
   const getIncoming = db.prepare(`SELECT from_id, to_id, type, meta FROM edges WHERE to_id = ?`);
   const getOutgoing = db.prepare(`SELECT from_id, to_id, type, meta FROM edges WHERE from_id = ?`);
@@ -28,7 +28,7 @@ export function createTraversalHelpers(db: Database.Database) {
  * Build a flat set of transitive callers (ancestors) using BFS.
  * Returns array of node ids (excluding the start node).
  */
-export function transitiveCallersFlat(db: Database.Database, startId: string, maxDepth = 200) {
+export function transitiveCallersFlat(db: IDatabase, startId: string, maxDepth = 200) {
   const { immediateCallers } = createTraversalHelpers(db);
   const visited = new Set<string>();
   const queue: { id: string; depth: number }[] = [{ id: startId, depth: 0 }];
@@ -55,7 +55,7 @@ export function transitiveCallersFlat(db: Database.Database, startId: string, ma
 /**
  * Build a flat set of transitive callees using BFS.
  */
-export function transitiveCalleesFlat(db: Database.Database, startId: string, maxDepth = 200) {
+export function transitiveCalleesFlat(db: IDatabase, startId: string, maxDepth = 200) {
   const { immediateCallees } = createTraversalHelpers(db);
   const visited = new Set<string>();
   const queue: { id: string; depth: number }[] = [{ id: startId, depth: 0 }];
@@ -84,7 +84,7 @@ export function transitiveCalleesFlat(db: Database.Database, startId: string, ma
  * Node: { id, children: [...] }
  * Children are callers of the node.
  */
-export function transitiveCallersTree(db: Database.Database, startId: string, maxDepth = 50) {
+export function transitiveCallersTree(db: IDatabase, startId: string, maxDepth = 50) {
   const { immediateCallers } = createTraversalHelpers(db);
   const visited = new Set<string>();
 
@@ -116,7 +116,7 @@ export function transitiveCallersTree(db: Database.Database, startId: string, ma
  * Build a tree structure for callees (outgoing).
  * Node: { id, children: [...] }
  */
-export function transitiveCalleesTree(db: Database.Database, startId: string, maxDepth = 50) {
+export function transitiveCalleesTree(db: IDatabase, startId: string, maxDepth = 50) {
   const { immediateCallees } = createTraversalHelpers(db);
   const visited = new Set<string>();
 
@@ -144,7 +144,7 @@ export function transitiveCalleesTree(db: Database.Database, startId: string, ma
  * Find all distinct simple paths from start -> target up to depthLimit.
  * Returns array of paths (each is array of node ids), uses DFS with cycle prevention.
  */
-export function allPathsBetween(db: Database.Database, startId: string, targetId: string, depthLimit = 20) {
+export function allPathsBetween(db: IDatabase, startId: string, targetId: string, depthLimit = 20) {
   const { immediateCallees } = createTraversalHelpers(db);
   const paths: string[][] = [];
   const visited = new Set<string>();
@@ -173,7 +173,7 @@ export function allPathsBetween(db: Database.Database, startId: string, targetId
  * Compute hotspots: returns arrays of top N nodes by incoming edge count (fan-in)
  * and by outgoing edge count (fan-out).
  */
-export function computeHotspots(db: Database.Database, top = 20) {
+export function computeHotspots(db: IDatabase, top = 20) {
   const incoming = db.prepare(`
     SELECT to_id as node, COUNT(*) as cnt
     FROM edges

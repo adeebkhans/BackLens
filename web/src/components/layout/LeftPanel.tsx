@@ -3,8 +3,11 @@
  */
 import { useState } from 'react';
 import { useGraphStore } from '../../store/graphStore';
-import { graphApi } from '../../api/graphApi';
+import { getGraphProvider } from '../../api/createProvider';
 import type { HotspotNode, GraphNode } from '../../types/graph';
+
+// Get the appropriate provider based on environment
+const provider = getGraphProvider();
 
 // Tabs 
 type TabType = 'hotspots' | 'classes' | 'files';
@@ -29,7 +32,7 @@ export function LeftPanel() {
   // Load hotspot nodes
   const handleLoadHotspots = async () => {
     try {
-      const results = await graphApi.getHotspots(15, {
+      const results = await provider.getHotspots(15, {
         expanded: true,
         includeTypes: ['function', 'method']
       });
@@ -43,7 +46,7 @@ export function LeftPanel() {
   const handleLoadClasses = async () => {
     setLoadingClasses(true);
     try {
-      const results = await graphApi.getClasses();
+      const results = await provider.getClasses();
       // Initialize them as "collapsed" objects with empty method arrays to save memory
       setClassHierarchies(results.map(c => ({ class: c, methods: [], expanded: false })));
     } catch (error) {
@@ -66,7 +69,7 @@ export function LeftPanel() {
     if (!hierarchy.expanded && hierarchy.methods.length === 0) {
       // Fetch methods for this class
       try {
-        const result = await graphApi.getMethodsOfClass(classId);
+        const result = await provider.getMethodsOfClass(classId);
         const updatedHierarchies = [...classHierarchies];
         updatedHierarchies[hierarchyIndex] = {
           ...hierarchy,
@@ -135,7 +138,7 @@ export function LeftPanel() {
   };
 
   return (
-    <div className="h-full bg-gray-50 border-r border-gray-200 p-4 flex flex-col">
+    <div className="h-full bg-gray-50 p-4 flex flex-col">
       <h2 className="text-lg font-semibold mb-4 text-gray-800">Entry Points</h2>
 
       {/* Search */}
