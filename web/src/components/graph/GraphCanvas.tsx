@@ -15,6 +15,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { useGraphStore } from '../../store/graphStore';
 import { nodeTypes } from './nodeTypes';
+import { isVsCodeEnvironment, getGraphProvider } from '../../api/createProvider';
 
 export function GraphCanvas() {
   const {
@@ -53,6 +54,17 @@ export function GraphCanvas() {
     [selectNode]
   );
 
+  // Handle double-click to navigate to source code (VS Code only)
+  const onNodeDoubleClick = useCallback(
+    (_event: React.MouseEvent, node: any) => {
+      if (isVsCodeEnvironment()) {
+        const provider = getGraphProvider();
+        provider.navigateToNode?.(node.data.node.id);
+      }
+    },
+    []
+  );
+
   return (
     <div className="h-full w-full relative bg-gray-100">
       <ReactFlow
@@ -62,6 +74,7 @@ export function GraphCanvas() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onNodeDoubleClick={onNodeDoubleClick}
         nodeTypes={nodeTypes} // uses custom renderers for different node types (func vs class vs file etc)
         fitView
         minZoom={0.01}
