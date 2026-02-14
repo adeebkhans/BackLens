@@ -5,6 +5,7 @@
 import { memo, useState } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { GraphNode, MethodNodeMeta, ClassNodeMeta } from '../../types/graph';
+import { isVsCodeEnvironment } from '../../api/createProvider';
 
 type CustomNodeData = {
   node: GraphNode;
@@ -150,9 +151,11 @@ export const CustomNode = memo(({ data, selected }: NodeProps<CustomNodeData>) =
       className={`
         rounded-lg border-2 shadow-md min-w-[200px] max-w-[300px] overflow-hidden transition-all
         ${getNodeColor()}
+        ${isVsCodeEnvironment() ? 'cursor-pointer' : ''}
       `}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      title={isVsCodeEnvironment() ? 'Double-click to navigate to source' : ''}
     >
       {/* Input/Output handles (a Handle is a connection point (a port) where edges/lines attach to a node) */}
       {/* positioned on all sides for flexible edge routing */}
