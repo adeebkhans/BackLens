@@ -11,7 +11,8 @@ type TreeItemType =
   | 'active-header'    // The group title: "Active Context"
   | 'active-project'   // The actual open project (e.g., "my-app")
   | 'available-header' // The group title: "Available Workspaces"
-  | 'detected-root';   // Other projects found on disk but not currently analyzed.
+  | 'detected-root'    // Other projects found on disk but not currently analyzed.
+  | 'registered-root'; // Projects already analyzed but not currently active.
 
 /**
  * THE TREE ITEM (The Row Class)
@@ -72,6 +73,22 @@ class ProjectTreeItem extends vscode.TreeItem {
         this.contextValue = 'detectedRoot';
         this.description = `${root.type} • ${root.marker}`; // Description: "node • package.json"
         this.tooltip = root.path; // Tooltip: Hover text showing full path
+        break;
+      }
+
+      // CASE E: Registered Roots (already analyzed, not active)
+      case 'registered-root': {
+        const project = this.data as RegisteredProject;
+        this.iconPath = new vscode.ThemeIcon('folder');
+        this.contextValue = 'registeredRoot';
+        this.description = project.rootPath;
+        this.tooltip = project.rootPath;
+        // this command insures click on this row will open the graph and load the project.
+        this.command = {
+          command: 'backlens.showGraph',
+          title: 'Open Graph',
+          arguments: [project]
+        };
         break;
       }
     }
@@ -160,9 +177,13 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<ProjectTreeI
         const activeRoot = this.registry.getActiveProject()?.rootPath;
         // Filter: Don't show the project here if it's already shown in the "Active" section above
         const available = this.detectedRoots.filter(r => r.path !== activeRoot);
-        return available.map(root =>
-          new ProjectTreeItem('detected-root', root.name, vscode.TreeItemCollapsibleState.None, root)
-        );
+        return available.map((root) => {
+          const registered = this.registry.getProject(root.path);
+          if (registered) {
+            return new ProjectTreeItem('registered-root', registered.name, vscode.TreeItemCollapsibleState.None, registered);
+          }
+          return new ProjectTreeItem('detected-root', root.name, vscode.TreeItemCollapsibleState.None, root);
+        });
       }
 
       default:
