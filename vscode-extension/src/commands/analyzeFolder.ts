@@ -30,6 +30,11 @@ export async function analyzeFolder(
   }
 
   try {
+    // Declare variables that will be used outside withProgress
+    let projectName: string = '';
+    let projectRoot: string = '';
+    let result: any = null;
+
     // UI FEEDBACK (Show progress while analyzing)
     // 'withProgress' creates a notification in the bottom-right corner.
     await vscode.window.withProgress(
@@ -48,8 +53,8 @@ export async function analyzeFolder(
           return;
         }
 
-        const projectRoot = detectedRoot.path; // e.g., "c:\projects\my-app"
-        const projectName = detectedRoot.name; // e.g., "my-app"
+        projectRoot = detectedRoot.path; // e.g., "c:\projects\my-app"
+        projectName = detectedRoot.name; // e.g., "my-app"
 
         progress.report({ increment: 20, message: 'Running analysis...' });
 
@@ -59,7 +64,7 @@ export async function analyzeFolder(
         // Run analysis in worker
         const worker = new AnalysisWorker();
         // We pass 'progress' down so the worker can update the bar (e.g. "Parsed 50/100 files").
-        const result = await worker.analyze(projectRoot, dbPath, progress);
+        result = await worker.analyze(projectRoot, dbPath, progress);
 
         if (!result.success) {
           vscode.window.showErrorMessage(`Analysis failed: ${result.error}`);
@@ -89,19 +94,21 @@ export async function analyzeFolder(
         });
 
         progress.report({ increment: 100 });
-
-        // Show message and WAIT for user to click
-        const selection = await vscode.window.showInformationMessage(
-          `✓ Project "${projectName}" analyzed successfully`,
-          'View Graph'
-        );
-
-        // If they clicked the button, run the command
-        if (selection === 'View Graph') {
-          vscode.commands.executeCommand('backlens.showGraph');
-        }
       }
     );
+
+    // Show message AFTER progress completes and Wait for user to click "View Graph"
+    if (result && result.success) {
+      const selection = await vscode.window.showInformationMessage(
+        `✓ Project "${projectName}" analyzed successfully`,
+        'View Graph'
+      );
+
+      // If they clicked the button, run the command
+      if (selection === 'View Graph') {
+        vscode.commands.executeCommand('backlens.showGraph');
+      }
+    }
   } catch (error: any) {
     vscode.window.showErrorMessage(`Error analyzing folder: ${error.message}`);
   }
