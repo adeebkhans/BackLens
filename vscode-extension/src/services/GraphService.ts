@@ -5,6 +5,8 @@
  * and exposing the API to other parts of the extension.
  */
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import type { GraphAPI, IDatabase } from '@backlens/graph-store'; // Import types only for now
 import { ProjectRegistry, type RegisteredProject } from '../core/ProjectRegistry';
 
@@ -17,7 +19,15 @@ async function loadGraphAPI(dbPath: string): Promise<{ api: GraphAPI; db: IDatab
   // If we import it at the top level, VS Code might crash immediately upon startup.
   const { createGraphAPIFromDb, createWasmSqliteAdapter } = await import('@backlens/graph-store');
 
-  const db = await createWasmSqliteAdapter(dbPath);
+  const wasmPath = path.join(__dirname, 'sql-wasm.wasm');
+  let wasmBinary: ArrayBuffer | undefined;
+
+  if (fs.existsSync(wasmPath)) {
+    const wasmBuffer = fs.readFileSync(wasmPath);
+    wasmBinary = wasmBuffer.buffer.slice(wasmBuffer.byteOffset, wasmBuffer.byteOffset + wasmBuffer.byteLength);
+  }
+
+  const db = await createWasmSqliteAdapter(dbPath, { wasmBinary, wasmPath });
   const api = createGraphAPIFromDb(db);
 
   return { api, db };
