@@ -1,0 +1,149 @@
+{
+  "name": "backlens",
+  "displayName": "BackLens",
+  "icon": "images/icon.png",
+  "description": "Interactive code graph visualization and architecture analysis for understanding complex codebases.",
+  "version": "0.2.0",
+  "publisher": "backlens",
+  "engines": {
+    "vscode": "^1.108.1"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "code graph",
+    "call graph",
+    "architecture",
+    "visualization",
+    "code analysis"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {   
+        "command": "backlens.analyzeFolder",
+        "title": "Analyze Folder",
+        "category": "BackLens",
+        "icon": "$(search)"
+      },
+      {
+        "command": "backlens.showGraph",
+        "title": "Show Graph",
+        "category": "BackLens",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "backlens.refreshExplorer",
+        "title": "Refresh",
+        "category": "BackLens",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "backlens.closeProject",
+        "title": "Close Project",
+        "category": "BackLens",
+        "icon": "$(close)"
+      },
+      {
+        "command": "backlens.goToNode",
+        "title": "Go to Source",
+        "category": "BackLens"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "backlens",
+          "title": "BackLens",
+          "icon": "images/icon.png"
+        }
+      ]
+    },
+    "views": {
+      "backlens": [
+        {
+          "id": "backlens.projectExplorer",
+          "name": "Projects",
+          "icon": "images/icon.png",
+          "contextualTitle": "BackLens Projects"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "backlens.refreshExplorer",
+          "when": "view == backlens.projectExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "backlens.analyzeFolder",
+          "when": "view == backlens.projectExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "backlens.analyzeFolder",
+          "when": "view == backlens.projectExplorer && viewItem == detectedRoot",
+          "group": "inline"
+        },
+        {
+          "command": "backlens.showGraph",
+          "when": "view == backlens.projectExplorer && viewItem == activeProject",
+          "group": "inline"
+        },
+        {
+          "command": "backlens.closeProject",
+          "when": "view == backlens.projectExplorer && viewItem == activeProject"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "backlens.analyzeFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "backlens"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "rebuild:sqlite": "electron-rebuild -f -w better-sqlite3 -m ./node_modules/better-sqlite3",
+    "prebuild": "pnpm --filter web build && node scripts/copyWebview.js",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.108.1",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "copy-webpack-plugin": "^13.0.1",
+    "eslint": "^9.39.2",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.52.0",
+    "webpack": "^5.104.1",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "@backlens/graph-store": "workspace:*",
+    "@backlens/parser": "workspace:*",
+    "better-sqlite3": "^8.7.0",
+    "sql.js": "^1.13.0"
+  }
+}
