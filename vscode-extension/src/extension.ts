@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ProjectRegistry } from './core/ProjectRegistry';
+import { ProjectRegistry, type RegisteredProject } from './core/ProjectRegistry';
 import { GraphService } from './services/GraphService';
 import { ProjectTreeProvider } from './providers/ProjectTreeProvider';
 import { GraphWebviewProvider } from './providers/GraphWebviewProvider';
@@ -52,9 +52,37 @@ export async function activate(context: vscode.ExtensionContext) {
       })
     );
 
+    context.subscriptions.push(
+      vscode.commands.registerCommand('backlens.reanalyzeFolder', async (uri?: vscode.Uri) => {
+        await analyzeFolder(uri, projectRegistry, graphService);
+        projectTreeProvider.refresh();
+      })
+    );
+
     // Register command: showGraph
     context.subscriptions.push(
-      vscode.commands.registerCommand('backlens.showGraph', async () => {
+      vscode.commands.registerCommand('backlens.showGraph', async (arg?: any) => {
+        // Direct Click: Call a function and pass the Project object directly (already RegisteredProject)
+        // Sidebar Click: If arg is a TreeItem (e.g., from inline button in tree view), project is in arg.data
+        let project: RegisteredProject | undefined = arg;
+        if (arg && typeof arg === 'object' && 'data' in arg) {
+          project = arg.data as RegisteredProject;
+        }
+
+        if (project) {
+          // Check if this project is already loaded
+          const currentProject = graphService.getCurrentProject();
+          if (currentProject && currentProject.rootPath === project.rootPath) {
+            // Already loaded, just show/focus the webview
+            graphWebviewProvider.show();
+            return;
+          }
+          // Load a different project
+          await graphService.loadProject(project);
+          graphWebviewProvider.show();
+          return;
+        }
+
         const currentProject = projectRegistry.getActiveProject();
         if (!currentProject) {
           vscode.window.showWarningMessage('No project loaded. Please analyze a project first.');
