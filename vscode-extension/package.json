@@ -32,6 +32,12 @@
         "icon": "$(search)"
       },
       {
+        "command": "backlens.reanalyzeFolder",
+        "title": "Re-analyze Folder",
+        "category": "BackLens",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "backlens.showGraph",
         "title": "Show Graph",
         "category": "BackLens",
@@ -94,7 +100,22 @@
           "group": "inline"
         },
         {
+          "command": "backlens.reanalyzeFolder",
+          "when": "view == backlens.projectExplorer && viewItem == registeredRoot",
+          "group": "inline"
+        },
+        {
           "command": "backlens.showGraph",
+          "when": "view == backlens.projectExplorer && viewItem == registeredRoot",
+          "group": "inline"
+        },
+        {
+          "command": "backlens.showGraph",
+          "when": "view == backlens.projectExplorer && viewItem == activeProject",
+          "group": "inline"
+        },
+        {
+          "command": "backlens.reanalyzeFolder",
           "when": "view == backlens.projectExplorer && viewItem == activeProject",
           "group": "inline"
         },

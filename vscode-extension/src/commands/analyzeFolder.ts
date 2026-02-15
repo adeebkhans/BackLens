@@ -14,6 +14,13 @@ export async function analyzeFolder(
 ): Promise<void> {
   let folderPath = uri?.fsPath;
 
+  // If triggered from our Sidebar TreeView (Available Workspaces list) instead of the File Explorer, 
+  // 'uri' is actually a TreeItem object. We scavenge it for the underlying folder path.
+  if (!folderPath && uri && typeof uri === 'object') {
+    const item = uri as { data?: { path?: string; rootPath?: string }; path?: string; rootPath?: string; fsPath?: string };
+    folderPath = item.fsPath || item.data?.path || item.data?.rootPath || item.path || item.rootPath;
+  }
+
   // If User ran command via Ctrl+Shift+P (Command Palette) instead of right-click.
   // In this case, 'uri' is undefined, so we must guess the folder.
   if (!folderPath) {
@@ -47,10 +54,29 @@ export async function analyzeFolder(
         progress.report({ increment: 0, message: 'Detecting project root...' });
 
         // Find project root
-        const detectedRoot = ProjectDetector.findNearestRoot(folderPath!);
+        let detectedRoot = ProjectDetector.findNearestRoot(folderPath!);
         if (!detectedRoot) {
-          vscode.window.showErrorMessage('No valid project root found (looking for package.json, etc.)');
-          return;
+          const detectedRoots = ProjectDetector.detectRoots(folderPath!);
+          if (detectedRoots.length === 1) {
+            detectedRoot = detectedRoots[0];
+          } else if (detectedRoots.length > 1) {
+            const picked = await vscode.window.showQuickPick(
+              detectedRoots.map((root) => ({
+                label: root.name,
+                description: root.path,
+                detail: `Type: ${root.type} - Marker: ${root.marker}`,
+                root
+              })),
+              { placeHolder: 'Select a project to analyze' }
+            );
+            if (!picked) {
+              return;
+            }
+            detectedRoot = picked.root;
+          } else {
+            vscode.window.showErrorMessage('No valid project root found (looking for package.json, etc.)');
+            return;
+          }
         }
 
         projectRoot = detectedRoot.path; // e.g., "c:\projects\my-app"

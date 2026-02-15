@@ -143,12 +143,20 @@ export class MessageBus implements vscode.Disposable {
       }
 
       case 'getClasses': {
-        const result = api.getAllNodes(params.options as any);
+        const options = params.options as any;
+        const result = api.getAllNodes({ ...options, includeTypes: ['class'] });
         return result;
       }
 
       case 'getMethodsOfClass': {
-        const result = api.getCallees(params.classId as string, { ...(params.options as any), edgeTypes: ['contains'] });
+        const options = params.options as any;
+        const result = api.getFunctionsInFile(params.classId as string, { ...options, includeTypes: ['method'] });
+        return result;
+      }
+
+      case 'getClassesInFile': {
+        const options = params.options as any;
+        const result = api.getFunctionsInFile(params.fileId as string, { ...options, includeTypes: ['class'] });
         return result;
       }
 

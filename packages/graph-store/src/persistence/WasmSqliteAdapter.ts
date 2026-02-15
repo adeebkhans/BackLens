@@ -93,6 +93,12 @@ class WasmStatement implements IStatement {
     }
 }
 
+// Interface for options when creating WasmSqliteAdapter
+export interface WasmSqliteOptions {
+    wasmBinary?: ArrayBuffer;
+    wasmPath?: string;
+}
+
 /**
  * WASM-based SQLite adapter using sql.js.
  * This adapter is portable and doesn't require native compilation,
@@ -114,7 +120,7 @@ export class WasmSqliteAdapter implements IDatabase {
      * Create a new WasmSqliteAdapter instance.
      * This is async because sql.js needs to be dynamically imported and initialized.
      */
-    static async create(filePath: string): Promise<WasmSqliteAdapter> {
+    static async create(filePath: string, options: WasmSqliteOptions = {}): Promise<WasmSqliteAdapter> {
         // Dynamic import of sql.js
         const initSqlJs = (await import('sql.js')).default;
 
@@ -143,10 +149,18 @@ export class WasmSqliteAdapter implements IDatabase {
 
         // Initialize sql.js with WASM binary from node_modules
         let SQL: any;
-        let wasmBinary: ArrayBuffer | undefined;
+        let wasmBinary: ArrayBuffer | undefined = options.wasmBinary;
 
-        if (fs && pathModule) {
-            // Try to find WASM in node_modules using require.resolve
+        // First try: Use provided wasmBinary or wasmPath
+        if (!wasmBinary && options.wasmPath && fs && pathModule) {
+            if (fs.existsSync(options.wasmPath)) {
+                const wasmBuffer = fs.readFileSync(options.wasmPath);
+                wasmBinary = wasmBuffer.buffer.slice(wasmBuffer.byteOffset, wasmBuffer.byteOffset + wasmBuffer.byteLength);
+            }
+        }
+
+        // Otherwise: Look for sql-wasm.wasm in node_modules or common locations 
+        if (!wasmBinary && fs && pathModule) {
             try {
                 const wasmPath = require.resolve('sql.js/dist/sql-wasm.wasm');
                 const wasmBuffer = fs.readFileSync(wasmPath);
@@ -265,6 +279,6 @@ export class WasmSqliteAdapter implements IDatabase {
  * Factory function to create a WasmSqliteAdapter.
  * Returns a Promise because initialization is async.
  */
-export async function createWasmSqliteAdapter(dbPath: string): Promise<IDatabase> {
-    return WasmSqliteAdapter.create(dbPath);
+export async function createWasmSqliteAdapter(dbPath: string, options: WasmSqliteOptions = {}): Promise<IDatabase> {
+    return WasmSqliteAdapter.create(dbPath, options);
 }
