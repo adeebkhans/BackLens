@@ -17,6 +17,9 @@ export type QueryOptionsParams = {
   includeTypes?: string;  // comma-separated
   excludeTypes?: string;  // comma-separated
   maxDepth?: number;
+  hideExternal?: boolean | string;   // Hide external/placeholder nodes
+  hideFramework?: boolean | string;  // Hide framework nodes
+  edgeTypes?: string;       // comma-separated edge types (e.g., "call,method_call")
 };
 
 export type TraversalQueryParams = QueryOptionsParams & {
