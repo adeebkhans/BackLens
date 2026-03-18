@@ -20,6 +20,24 @@ const api = axios.create({
   timeout: API_TIMEOUT,
 });
 
+/**
+ * Serialize QueryOptions for HTTP params.
+ * Arrays are comma-separated, booleans are passed as-is.
+ */
+function serializeOptions(options?: QueryOptions): Record<string, any> | undefined {
+  if (!options) return undefined;
+  const params: Record<string, any> = {};
+  if (options.expanded !== undefined) params.expanded = options.expanded;
+  if (options.includeTypes?.length) params.includeTypes = options.includeTypes.join(',');
+  if (options.excludeTypes?.length) params.excludeTypes = options.excludeTypes.join(',');
+  if (options.maxDepth !== undefined) params.maxDepth = options.maxDepth;
+  if (options.tree !== undefined) params.tree = options.tree;
+  if (options.hideExternal !== undefined) params.hideExternal = options.hideExternal;
+  if (options.hideFramework !== undefined) params.hideFramework = options.hideFramework;
+  if (options.edgeTypes?.length) params.edgeTypes = options.edgeTypes.join(',');
+  return params;
+}
+
 export const graphApi = {
   /**
    * Search for nodes by query string
@@ -52,7 +70,7 @@ export const graphApi = {
   async getCallers(id: string, options?: QueryOptions): Promise<CallersCalleesResponse> {
     const { data } = await api.get<ApiResponse<CallersCalleesResponse>>(
       `/calls/${encodeURIComponent(id)}/callers`,
-      { params: options }
+      { params: serializeOptions(options) }
     );
     return data.data;
   },
@@ -63,7 +81,7 @@ export const graphApi = {
   async getCallees(id: string, options?: QueryOptions): Promise<CallersCalleesResponse> {
     const { data } = await api.get<ApiResponse<CallersCalleesResponse>>(
       `/calls/${encodeURIComponent(id)}/callees`,
-      { params: options }
+      { params: serializeOptions(options) }
     );
     return data.data;
   },
@@ -77,7 +95,7 @@ export const graphApi = {
   ): Promise<GraphNode[] | TransitiveNode> {
     const { data } = await api.get<ApiResponse<GraphNode[] | TransitiveNode>>(
       `/traversal/${encodeURIComponent(id)}/callers/transitive`,
-      { params: options }
+      { params: serializeOptions(options) }
     );
     return data.data;
   },
@@ -91,7 +109,7 @@ export const graphApi = {
   ): Promise<GraphNode[] | TransitiveNode> {
     const { data } = await api.get<ApiResponse<GraphNode[] | TransitiveNode>>(
       `/traversal/${encodeURIComponent(id)}/callees/transitive`,
-      { params: options }
+      { params: serializeOptions(options) }
     );
     return data.data;
   },
@@ -101,7 +119,7 @@ export const graphApi = {
    */
   async getHotspots(top = 20, options?: QueryOptions): Promise<HotspotNode[]> {
     const { data } = await api.get<ApiResponse<HotspotNode[]>>('/analytics/hotspots', {
-      params: { top, ...options }
+      params: { top, ...serializeOptions(options) }
     });
     return data.data;
   },
@@ -115,7 +133,7 @@ export const graphApi = {
     options?: QueryOptions
   ): Promise<PathResult | null> {
     const { data } = await api.get<ApiResponse<PathResult>>('/traversal/path/shortest', {
-      params: { start, target, ...options }
+      params: { start, target, ...serializeOptions(options) }
     });
     return data.success ? data.data : null;
   },
@@ -128,8 +146,9 @@ export const graphApi = {
     target: string,
     options?: QueryOptions & { depthLimit?: number; maxPaths?: number }
   ): Promise<PathResult[]> {
+    const { depthLimit, maxPaths, ...rest } = options || {};
     const { data } = await api.get<ApiResponse<PathResult[]>>('/traversal/path/all', {
-      params: { start, target, ...options }
+      params: { start, target, depthLimit, maxPaths, ...serializeOptions(rest) }
     });
     return data.data;
   },
@@ -140,7 +159,7 @@ export const graphApi = {
   async getFunctionsInFile(fileId: string, options?: QueryOptions): Promise<CallersCalleesResponse> {
     const { data } = await api.get<ApiResponse<CallersCalleesResponse>>(
       `/calls/${encodeURIComponent(fileId)}/functions`,
-      { params: options }
+      { params: serializeOptions(options) }
     );
     return data.data;
   },
