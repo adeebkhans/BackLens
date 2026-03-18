@@ -4,7 +4,7 @@
 import { create } from 'zustand';
 import type { Node, Edge } from 'reactflow';
 import { MarkerType } from 'reactflow';
-import type { GraphNode } from '../types/graph';
+import type { GraphNode, QueryOptions } from '../types/graph';
 import { getGraphProvider } from '../api/createProvider';
 
 // Get the appropriate provider based on environment (HTTP or VS Code)
@@ -96,6 +96,48 @@ interface ExpandedState {
   };
 }
 
+/**
+ * Global filter settings applied to ALL graph API queries.
+ * These are sent as QueryOptions to the backend for DB-level filtering.
+ */
+export interface GlobalFilters {
+  hideExternal: boolean;     // Hide external/placeholder nodes (npm packages, etc.)
+  hideFramework: boolean;    // Hide framework calls (express, etc.)
+  includeFunctionCalls: boolean;   // Include 'call' edge type
+  includeMethodCalls: boolean;     // Include 'method_call' edge type
+}
+
+const DEFAULT_FILTERS: GlobalFilters = {
+  hideExternal: false,
+  hideFramework: false,
+  includeFunctionCalls: true,
+  includeMethodCalls: true,
+};
+
+/**
+ * Convert GlobalFilters into QueryOptions for API calls.
+ */
+function filtersToQueryOptions(filters: GlobalFilters): Partial<QueryOptions> {
+  const opts: Partial<QueryOptions> = {};
+  if (filters.hideExternal) opts.hideExternal = true;
+  if (filters.hideFramework) opts.hideFramework = true;
+
+  // Build edgeTypes from the include toggles
+  const edgeTypes: string[] = [];
+  if (filters.includeFunctionCalls) edgeTypes.push('call');
+  if (filters.includeMethodCalls) edgeTypes.push('method_call');
+  // Only set edgeTypes if at least one is selected and not both (both = default = omit)
+  if (edgeTypes.length > 0 && edgeTypes.length < 2) {
+    opts.edgeTypes = edgeTypes;
+  }
+  // If neither is selected, still send both as default to avoid empty results
+  if (edgeTypes.length === 0) {
+    // Don't set edgeTypes — server defaults to both
+  }
+
+  return opts;
+}
+
 // Zustand store interface
 interface GraphStore {
   // State
@@ -105,6 +147,7 @@ interface GraphStore {
   selectedNode: GraphNode | null;
   loading: boolean;
   error: string | null;
+  filters: GlobalFilters;
 
   // Actions
   setNodes: (nodes: Node[]) => void;
@@ -113,6 +156,7 @@ interface GraphStore {
   addEdges: (edges: Edge[]) => void;
   selectNode: (node: GraphNode | null) => void;
   clearGraph: () => void;
+  setFilters: (filters: Partial<GlobalFilters>) => void;
 
   // API-connected actions
   loadHotspots: (top?: number) => Promise<void>;
@@ -132,6 +176,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   selectedNode: null,
   loading: false,
   error: null,
+  filters: { ...DEFAULT_FILTERS },
 
   // Basic setters
   setNodes: (nodes) => set({ nodes }),
@@ -208,13 +253,21 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     selectedNode: null
   }),
 
+  setFilters: (newFilters) => set((state) => ({
+    filters: { ...state.filters, ...newFilters },
+    // Clear expansion tracking when filters change so re-expansion uses new filters
+    expanded: {},
+  })),
+
   // Load initial hotspots and initializes them in a multi-column grid with attached interaction handlers (not used rn)
   loadHotspots: async (top = 10) => {
     set({ loading: true, error: null });
     try {
+      const filterOpts = filtersToQueryOptions(get().filters);
       const hotspots = await provider.getHotspots(top, {
         expanded: true,
-        includeTypes: ['function']
+        includeTypes: ['function', 'method'],
+        ...filterOpts
       });
 
       console.log('Fetched hotspots:', hotspots);
@@ -263,9 +316,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       }
 
       // Fetch callers and callees in parallel
+      const filterOpts = filtersToQueryOptions(get().filters);
       const [callersResult, calleesResult] = await Promise.all([
-        provider.getCallers(nodeId, { expanded: true, excludeTypes: ['file'] }),
-        provider.getCallees(nodeId, { expanded: true, excludeTypes: ['file'] })
+        provider.getCallers(nodeId, { expanded: true, excludeTypes: ['file'], ...filterOpts }),
+        provider.getCallees(nodeId, { expanded: true, excludeTypes: ['file'], ...filterOpts })
       ]);
 
       // Create center node
@@ -391,7 +445,8 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
     set({ loading: true });
     try {
-      const result = await provider.getCallers(nodeId, { expanded: true });
+      const filterOpts = filtersToQueryOptions(get().filters);
+      const result = await provider.getCallers(nodeId, { expanded: true, ...filterOpts });
       const callerNodes = result.expanded;
 
       // Create nodes for callers
@@ -461,7 +516,8 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
     set({ loading: true });
     try {
-      const result = await provider.getCallees(nodeId, { expanded: true });
+      const filterOpts = filtersToQueryOptions(get().filters);
+      const result = await provider.getCallees(nodeId, { expanded: true, ...filterOpts });
       const calleeNodes = result.expanded;
 
       // Create nodes for callees
