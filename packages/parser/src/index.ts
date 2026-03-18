@@ -497,6 +497,54 @@ function parseFileDetailed(filePath: string, rootBase: string): FileParseData {
           if (t.isIdentifier(c.object)) {
             receiver = c.object.name; // The object on which the method is called
             calleeObject = c.object.name; // Also set calleeObject for compatibility
+          } else {
+            // Handle chained method calls: res.status(400).json(...)
+            // Walk down through CallExpression -> MemberExpression chains to find the root receiver.
+            // e.g., for `res.status(400).json()`:
+            //   callee = MemberExpr(.json, CallExpr(MemberExpr(.status, Identifier(res)), [400]))
+            //   We walk: CallExpr.callee -> MemberExpr.object -> Identifier(res)
+
+            // The ASTs builds a tree of objects like this (it read right to left actually) - 
+            //  CallExpression: calls `.json(...)`
+            //  └── callee: MemberExpression (represents `<something>.json`)
+            //      ├── property: Identifier ("json")
+            //      └── object: CallExpression (represents `res.status(400)`) 
+            //                  ^^^^ THIS IS WHERE OUR CODE STARTS
+            //          └── callee: MemberExpression (represents `<something>.status`)
+            //              ├── property: Identifier ("status")
+            //              └── object: Identifier ("res")
+            //                          ^^^^ THIS IS OUR TARGET
+
+            // 'c.object' is the object of the outermost MemberExpression (the <something> before .json)
+            // For `res.status(400).json()`, 'c.object' is the CallExpression: `res.status(400)`
+            let obj: t.Expression = c.object;
+            while (true) {
+              // SCENARIO A: It's a method call (MemberExpression as callee), e.g., `res.status(400)`
+              if (t.isCallExpression(obj) && t.isMemberExpression(obj.callee)) {
+                // Peel off one layer: e.g., res.status(400) -> look at res.status's object
+                obj = obj.callee.object;
+              } else if (t.isMemberExpression(obj)) {
+                // SCENARIO B: It's a chained property access without a function call, e.g., `req.body.user`
+                obj = obj.object;
+              } else if (t.isCallExpression(obj)) {
+                // SCENARIO C: It's a simple function call (not a method), e.g., `sharp(buffer)` in `sharp(buffer).resize(...)`
+                // The intermediate object returned by sharp() is anonymous (no variable name).
+                // As a fallback, we extract the factory function's name ("sharp") to act as the receiver.
+                if (t.isIdentifier(obj.callee)) {
+                  receiver = obj.callee.name;
+                  calleeObject = obj.callee.name;
+                }
+                break;
+              } else {
+                // SCENARIO D: We hit rock bottom (Identifier, Literal, etc.). Exit the loop
+                break;
+              }
+            }
+            // If we successfully found an Identifier at the root, that's our receiver
+            if (t.isIdentifier(obj)) {
+              receiver = obj.name;
+              calleeObject = obj.name;
+            }
           }
           callType = "method_call"; // Mark this as a method call
         }

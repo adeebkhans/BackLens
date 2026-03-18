@@ -23,19 +23,28 @@ export function LeftPanel() {
   const [searchQuery, setSearchQuery] = useState(''); // The text currently in the search input
   const [hotspots, setHotspots] = useState<HotspotNode[]>([]); // Array of results from the hotspot analysis
   const [classHierarchies, setClassHierarchies] = useState<ClassHierarchy[]>([]); // Array of classes used to build the tree view
-  const [excludeInfra, setExcludeInfra] = useState(true); // Whether to exclude infrastructure files
-  const [hideFramework, setHideFramework] = useState(false); // Whether to hide framework calls (not implemented yet)
   const [activeTab, setActiveTab] = useState<TabType>('hotspots');
   const [loadingClasses, setLoadingClasses] = useState(false);
-  const { loadHotspotNode, searchAndAddNode, clearGraph, loading, addNode } = useGraphStore(); // Graph store actions and state
+  const { loadHotspotNode, searchAndAddNode, clearGraph, loading, addNode, filters, setFilters } = useGraphStore();
 
   // Load hotspot nodes
   const handleLoadHotspots = async () => {
     try {
-      const results = await provider.getHotspots(15, {
+      // Build filter options from global filters
+      const filterOpts: Record<string, any> = {
         expanded: true,
-        includeTypes: ['function', 'method']
-      });
+        includeTypes: ['function', 'method'],
+      };
+      if (filters.hideExternal) filterOpts.hideExternal = true;
+      if (filters.hideFramework) filterOpts.hideFramework = true;
+      const edgeTypes: string[] = [];
+      if (filters.includeFunctionCalls) edgeTypes.push('call');
+      if (filters.includeMethodCalls) edgeTypes.push('method_call');
+      if (edgeTypes.length > 0 && edgeTypes.length < 2) {
+        filterOpts.edgeTypes = edgeTypes;
+      }
+
+      const results = await provider.getHotspots(15, filterOpts);
       setHotspots(results);
     } catch (error) {
       console.error('Failed to load hotspots:', error);
@@ -115,14 +124,6 @@ export function LeftPanel() {
     }
   };
 
-  // Filter out infrastructure files if toggle is enabled
-  const filteredHotspots = excludeInfra
-    ? hotspots.filter(h => {
-      const fileName = h.node.meta?.file?.split('/').pop() || '';
-      return !['index.ts', 'app.ts', 'server.ts', 'main.ts'].includes(fileName);
-    })
-    : hotspots;
-
   // Get node type icon
   const getNodeTypeIcon = (type: string) => {
     switch (type) {
@@ -160,6 +161,49 @@ export function LeftPanel() {
         </button>
       </form>
 
+      {/* Global Filters - Applied to ALL API queries */}
+      <div className="mb-3 p-2.5 bg-white border border-gray-200 rounded-md">
+        <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Filters</h3>
+        <div className="space-y-1.5">
+          <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={filters.hideExternal}
+              onChange={(e) => setFilters({ hideExternal: e.target.checked })}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            Hide external calls
+          </label>
+          <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={filters.hideFramework}
+              onChange={(e) => setFilters({ hideFramework: e.target.checked })}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            Hide framework calls
+          </label>
+          <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={filters.includeFunctionCalls}
+              onChange={(e) => setFilters({ includeFunctionCalls: e.target.checked })}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            Include function calls
+          </label>
+          <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={filters.includeMethodCalls}
+              onChange={(e) => setFilters({ includeMethodCalls: e.target.checked })}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            Include method calls
+          </label>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-3">
         <button
@@ -196,32 +240,10 @@ export function LeftPanel() {
               </button>
             </div>
 
-            {/* Filter toggles */}
-            <div className="space-y-1 mb-3">
-              <label className="flex items-center gap-2 text-xs text-gray-600">
-                <input
-                  type="checkbox"
-                  checked={excludeInfra}
-                  onChange={(e) => setExcludeInfra(e.target.checked)}
-                  className="rounded"
-                />
-                Hide infrastructure files
-              </label>
-              <label className="flex items-center gap-2 text-xs text-gray-600">
-                <input
-                  type="checkbox"
-                  checked={hideFramework}
-                  onChange={(e) => setHideFramework(e.target.checked)}
-                  className="rounded"
-                />
-                Hide framework calls
-              </label>
-            </div>
-
             {/* Hotspot list */}
-            {filteredHotspots.length > 0 ? (
+            {hotspots.length > 0 ? (
               <div className="space-y-2">
-                {filteredHotspots.map((hotspot) => (
+                {hotspots.map((hotspot) => (
                   <button
                     key={hotspot.node.id}
                     onClick={() => handleHotspotClick(hotspot.node.id)}

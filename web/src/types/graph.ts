@@ -112,6 +112,9 @@ export interface QueryOptions {
   excludeTypes?: string[];
   maxDepth?: number;
   tree?: boolean;
+  hideExternal?: boolean;
+  hideFramework?: boolean;
+  edgeTypes?: string[];   // e.g., ["call", "method_call"]
 }
 
 export interface ApiResponse<T> {

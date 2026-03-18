@@ -84,7 +84,10 @@ function parseQueryOptions(query: any) {
         expanded: query.expanded !== undefined ? (query.expanded as any) === true || (query.expanded as any) === "true" : true,
         includeTypes: query.includeTypes ? query.includeTypes.split(",") : undefined,
         excludeTypes: query.excludeTypes ? query.excludeTypes.split(",") : undefined,
-        maxDepth: query.maxDepth ? Number(query.maxDepth) : undefined
+        maxDepth: query.maxDepth ? Number(query.maxDepth) : undefined,
+        hideExternal: query.hideExternal !== undefined ? (query.hideExternal as any) === true || (query.hideExternal as any) === "true" : undefined,
+        hideFramework: query.hideFramework !== undefined ? (query.hideFramework as any) === true || (query.hideFramework as any) === "true" : undefined,
+        edgeTypes: query.edgeTypes ? query.edgeTypes.split(",") : undefined
     };
 }
 

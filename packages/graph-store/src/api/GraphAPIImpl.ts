@@ -3,7 +3,7 @@ import { IDatabase } from "../persistence/IDatabase";
 import { NodeStore, PersistNode } from "../persistence/NodeStore";
 import { EdgeStore } from "../persistence/EdgeStore";
 import { QueryOptions } from "./QueryOptions";
-import { filterNode, filterNodes } from "./filterUtils";
+import { filterNode, filterNodes, buildEdgeTypeClause } from "./filterUtils";
 import {
     transitiveCallersFlat as tCallersFlatAlg,
     transitiveCallersTree as tCallersTreeAlg,
@@ -187,16 +187,16 @@ export class GraphAPIImpl implements GraphAPI {
 
   getCallers(nodeId: string, options?: QueryOptions): FlatListResult {
       const opts = { ...this.DEFAULT_OPTIONS, ...options };
-      // Find raw IDs using SQL (both 'call' and 'method_call' edges)
-      const rows = this.db.prepare(`SELECT from_id FROM edges WHERE to_id = ? AND (type = 'call' OR type = 'method_call')`).all(nodeId) as { from_id: string }[];
+      const edgeClause = buildEdgeTypeClause(opts.edgeTypes);
+      const rows = this.db.prepare(`SELECT from_id FROM edges WHERE to_id = ? AND ${edgeClause}`).all(nodeId) as { from_id: string }[];
       const ids = rows.map(r => r.from_id);
       return this.buildFlatResult(ids, opts);
   }
 
   getCallees(nodeId: string, options?: QueryOptions): FlatListResult {
       const opts = { ...this.DEFAULT_OPTIONS, ...options };
-      // Both 'call' and 'method_call' edges for comprehensive results
-      const rows = this.db.prepare(`SELECT to_id FROM edges WHERE from_id = ? AND (type = 'call' OR type = 'method_call')`).all(nodeId) as { to_id: string }[];
+      const edgeClause = buildEdgeTypeClause(opts.edgeTypes);
+      const rows = this.db.prepare(`SELECT to_id FROM edges WHERE from_id = ? AND ${edgeClause}`).all(nodeId) as { to_id: string }[];
       const ids = rows.map(r => r.to_id);
       return this.buildFlatResult(ids, opts);
   }
@@ -218,27 +218,25 @@ export class GraphAPIImpl implements GraphAPI {
 
   transitiveCallersFlat(nodeId: string, options?: QueryOptions): FlatListResult {
       const opts = { ...this.DEFAULT_OPTIONS, ...options };
-      // Call core traversal algorithm, respecting maxDepth
-      const ids = tCallersFlatAlg(this.db, nodeId, opts.maxDepth ?? 200);
-      // Apply filters and expansion
+      const ids = tCallersFlatAlg(this.db, nodeId, opts.maxDepth ?? 200, opts.edgeTypes);
       return this.buildFlatResult(ids, opts);
   }
 
   transitiveCallersTree(nodeId: string, options?: QueryOptions): TreeResult {
       const opts = { ...this.DEFAULT_OPTIONS, ...options };
-      const tree = tCallersTreeAlg(this.db, nodeId, opts.maxDepth ?? 50);
+      const tree = tCallersTreeAlg(this.db, nodeId, opts.maxDepth ?? 50, opts.edgeTypes);
       return this.buildFilteredTree(tree, opts);
   }
 
   transitiveCalleesFlat(nodeId: string, options?: QueryOptions): FlatListResult {
       const opts = { ...this.DEFAULT_OPTIONS, ...options };
-      const ids = tCalleesFlatAlg(this.db, nodeId, opts.maxDepth ?? 200);
+      const ids = tCalleesFlatAlg(this.db, nodeId, opts.maxDepth ?? 200, opts.edgeTypes);
       return this.buildFlatResult(ids, opts);
   }
 
   transitiveCalleesTree(nodeId: string, options?: QueryOptions): TreeResult {
       const opts = { ...this.DEFAULT_OPTIONS, ...options };
-      const tree = tCalleesTreeAlg(this.db, nodeId, opts.maxDepth ?? 50);
+      const tree = tCalleesTreeAlg(this.db, nodeId, opts.maxDepth ?? 50, opts.edgeTypes);
       return this.buildFilteredTree(tree, opts);
   }
 

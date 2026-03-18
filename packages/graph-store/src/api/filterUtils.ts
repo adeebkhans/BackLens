@@ -4,7 +4,7 @@ import { QueryOptions } from "./QueryOptions";
 // ---Secondary Filtering---
 
 /**
- * Applies type filters (include/exclude) to a single node.
+ * Applies type filters (include/exclude) and semantic filters to a single node.
  */
 export function filterNode(
   node: PersistNode | null,
@@ -22,6 +22,17 @@ export function filterNode(
     return null;
   }
 
+  // 3. Hide External: Exclude external nodes and placeholder nodes with external meta
+  if (opts?.hideExternal) {
+    if (node.type === 'external') return null;
+    if (node.type === 'placeholder' && node.meta?.external) return null;
+  }
+
+  // 4. Hide Framework: Exclude nodes with isFramework metadata
+  if (opts?.hideFramework) {
+    if (node.meta?.isFramework) return null;
+  }
+
   return node;
 }
 
@@ -36,4 +47,17 @@ export function filterNodes(
   return nodes
     .map(n => filterNode(n, opts))
     .filter(Boolean) as PersistNode[];
+}
+
+/**
+ * Build a SQL WHERE clause fragment for edge type filtering.
+ * Returns the clause and whether it was applied.
+ */
+export function buildEdgeTypeClause(edgeTypes?: string[]): string {
+  if (!edgeTypes || edgeTypes.length === 0) {
+    // Default: include both call and method_call
+    return `(type = 'call' OR type = 'method_call')`;
+  }
+  const conditions = edgeTypes.map(t => `type = '${t}'`).join(' OR ');
+  return `(${conditions})`;
 }

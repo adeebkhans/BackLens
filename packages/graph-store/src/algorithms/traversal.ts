@@ -1,14 +1,16 @@
 import { IDatabase } from "../persistence/IDatabase";
+import { buildEdgeTypeClause } from "../api/filterUtils";
 
 /**
  * Small helpers that query the edges table to get direct neighbors.
  * The functions are synchronous and lightweight (using prepared statements).
+ * Supports optional edge type filtering.
  */
 
-export function createTraversalHelpers(db: IDatabase) {
-  // prepared statements
-  const getIncoming = db.prepare(`SELECT from_id, to_id, type, meta FROM edges WHERE to_id = ?`);
-  const getOutgoing = db.prepare(`SELECT from_id, to_id, type, meta FROM edges WHERE from_id = ?`);
+export function createTraversalHelpers(db: IDatabase, edgeTypes?: string[]) {
+  const edgeClause = buildEdgeTypeClause(edgeTypes);
+  const getIncoming = db.prepare(`SELECT from_id, to_id, type, meta FROM edges WHERE to_id = ? AND ${edgeClause}`);
+  const getOutgoing = db.prepare(`SELECT from_id, to_id, type, meta FROM edges WHERE from_id = ? AND ${edgeClause}`);
 
   function immediateCallers(nodeId: string) {
     return getIncoming.all(nodeId) as { from_id: string; to_id: string; type: string; meta: string | null }[];
@@ -28,8 +30,8 @@ export function createTraversalHelpers(db: IDatabase) {
  * Build a flat set of transitive callers (ancestors) using BFS.
  * Returns array of node ids (excluding the start node).
  */
-export function transitiveCallersFlat(db: IDatabase, startId: string, maxDepth = 200) {
-  const { immediateCallers } = createTraversalHelpers(db);
+export function transitiveCallersFlat(db: IDatabase, startId: string, maxDepth = 200, edgeTypes?: string[]) {
+  const { immediateCallers } = createTraversalHelpers(db, edgeTypes);
   const visited = new Set<string>();
   const queue: { id: string; depth: number }[] = [{ id: startId, depth: 0 }];
   visited.add(startId);
@@ -55,8 +57,8 @@ export function transitiveCallersFlat(db: IDatabase, startId: string, maxDepth =
 /**
  * Build a flat set of transitive callees using BFS.
  */
-export function transitiveCalleesFlat(db: IDatabase, startId: string, maxDepth = 200) {
-  const { immediateCallees } = createTraversalHelpers(db);
+export function transitiveCalleesFlat(db: IDatabase, startId: string, maxDepth = 200, edgeTypes?: string[]) {
+  const { immediateCallees } = createTraversalHelpers(db, edgeTypes);
   const visited = new Set<string>();
   const queue: { id: string; depth: number }[] = [{ id: startId, depth: 0 }];
   visited.add(startId);
@@ -84,8 +86,8 @@ export function transitiveCalleesFlat(db: IDatabase, startId: string, maxDepth =
  * Node: { id, children: [...] }
  * Children are callers of the node.
  */
-export function transitiveCallersTree(db: IDatabase, startId: string, maxDepth = 50) {
-  const { immediateCallers } = createTraversalHelpers(db);
+export function transitiveCallersTree(db: IDatabase, startId: string, maxDepth = 50, edgeTypes?: string[]) {
+  const { immediateCallers } = createTraversalHelpers(db, edgeTypes);
   const visited = new Set<string>();
 
   function build(nodeId: string, depth: number) {
@@ -116,8 +118,8 @@ export function transitiveCallersTree(db: IDatabase, startId: string, maxDepth =
  * Build a tree structure for callees (outgoing).
  * Node: { id, children: [...] }
  */
-export function transitiveCalleesTree(db: IDatabase, startId: string, maxDepth = 50) {
-  const { immediateCallees } = createTraversalHelpers(db);
+export function transitiveCalleesTree(db: IDatabase, startId: string, maxDepth = 50, edgeTypes?: string[]) {
+  const { immediateCallees } = createTraversalHelpers(db, edgeTypes);
   const visited = new Set<string>();
 
   function build(nodeId: string, depth: number) {
