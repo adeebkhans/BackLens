@@ -6,4 +6,9 @@ export interface QueryOptions {
   excludeTypes?: string[];   // Exclude these node types (e.g., ["file", "placeholder"])
   maxDepth?: number;         // Traversal depth limit (used by transitive queries)
   expanded?: boolean;        // Return raw IDs vs. expanded node details (default: true)
+
+  // --- Semantic Filters (applied at DB/query level) ---
+  hideExternal?: boolean;    // Exclude external/placeholder nodes representing external modules
+  hideFramework?: boolean;   // Exclude nodes with isFramework metadata flag
+  edgeTypes?: string[];      // Only follow these edge types during traversal (e.g., ["call", "method_call"])
 }
