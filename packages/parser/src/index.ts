@@ -225,8 +225,15 @@ function parseFileDetailed(filePath: string, rootBase: string): FileParseData {
     return id;
   }
 
-  // Helper to create and record a MethodNode with built-in deduping
-  function recordMethod(node: t.ClassMethod, methodName: string, className: string, classId: string) {
+  // Helper to create and record a MethodNode with built-in deduping.
+  // Supports both ClassMethod and class field function members.
+  function recordMethod(
+    node: t.ClassMethod | t.ClassProperty | t.ClassPrivateProperty,
+    methodName: string,
+    className: string,
+    classId: string,
+    functionNode?: t.FunctionExpression | t.ArrowFunctionExpression
+  ) {
     const id = `class:${normalizeFile(filePath, rootBase)}:${className}.${methodName}`;
     if (recordedMethodIds.has(id)) {
       // ensure AST node maps to this method id for call attribution
@@ -245,8 +252,12 @@ function parseFileDetailed(filePath: string, rootBase: string): FileParseData {
     };
     methods.push(m);
     recordedMethodIds.add(id);
-    // Map this ClassMethod AST node to the method id so caller resolution uses method IDs
+    // Map the owning class member to method id so caller resolution uses method IDs.
     nodeToId.set(node, id);
+    // For class field handlers like `foo = async () => {}`, map the function node too.
+    if (functionNode) {
+      nodeToId.set(functionNode, id);
+    }
     return id;
   }
 
@@ -403,12 +414,44 @@ function parseFileDetailed(filePath: string, rootBase: string): FileParseData {
         const classId = recordClass(node, className);
 
         // Extract all methods from the class
-        for (const method of node.body.body) {
-          if (t.isClassMethod(method)) {
-            const methodName = t.isIdentifier(method.key) ? method.key.name : null;
+        for (const member of node.body.body) {
+          if (t.isClassMethod(member)) {
+            const methodName = t.isIdentifier(member.key) ? member.key.name : null;
             if (methodName) {
-              // Record only as method; avoid creating duplicate function nodes
-              recordMethod(method, methodName, className, classId);
+              // Record only as method; avoid creating duplicate function nodes.
+              recordMethod(member, methodName, className, classId);
+            }
+            continue;
+          }
+
+          // Handle class field handlers:
+          // `foo = async () => {}` or `foo = function () {}`
+          if (t.isClassProperty(member)) {
+            const methodName = t.isIdentifier(member.key) ? member.key.name : null;
+            const init = member.value;
+            if (
+              methodName &&
+              init &&
+              (t.isArrowFunctionExpression(init) || t.isFunctionExpression(init))
+            ) {
+              recordMethod(member, methodName, className, classId, init);
+            }
+            continue;
+          }
+
+          // Handle private class field handlers:
+          // `#foo = async () => {}` or `#foo = function () {}`
+          if (t.isClassPrivateProperty(member)) {
+            const methodName = t.isPrivateName(member.key) && t.isIdentifier(member.key.id)
+              ? member.key.id.name
+              : null;
+            const init = member.value;
+            if (
+              methodName &&
+              init &&
+              (t.isArrowFunctionExpression(init) || t.isFunctionExpression(init))
+            ) {
+              recordMethod(member, methodName, className, classId, init);
             }
           }
         }
