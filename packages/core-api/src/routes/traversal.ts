@@ -58,6 +58,43 @@ const traversal: FastifyPluginAsync = async (app: any) => {
   });
 
   /**
+   * GET /traversal/path/shortest
+   * Find the shortest call chain between two nodes
+   * ?start=nodeId&target=nodeId&depthLimit=10
+   */
+  app.get("/path/shortest", async (req: any, reply: any) => {
+    const { start, target, depthLimit, ...queryOpts } = req.query as PathQueryParams;
+
+    if (!start || !target) {
+      return reply.code(400).send({
+        success: false,
+        error: {
+          message: "Both 'start' and 'target' query parameters are required",
+          code: "MISSING_PARAMS"
+        }
+      });
+    }
+
+    const opts = {
+      ...parseQueryOptions(queryOpts),
+      depthLimit: depthLimit ? Number(depthLimit) : undefined
+    };
+
+    const result = app.graph.shortestCallChain(start, target, opts);
+
+    return {
+      success: true,
+      data: result,
+      meta: {
+        start,
+        target,
+        found: !!result,
+        depthLimit: opts.depthLimit
+      }
+    };
+  });
+
+  /**
    * GET /traversal/path/all
    * Find all call chains between two nodes
    * ?start=nodeId&target=nodeId&depthLimit=10&maxPaths=100

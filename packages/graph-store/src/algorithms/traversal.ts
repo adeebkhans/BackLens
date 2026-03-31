@@ -146,8 +146,8 @@ export function transitiveCalleesTree(db: IDatabase, startId: string, maxDepth =
  * Find all distinct simple paths from start -> target up to depthLimit.
  * Returns array of paths (each is array of node ids), uses DFS with cycle prevention.
  */
-export function allPathsBetween(db: IDatabase, startId: string, targetId: string, depthLimit = 20) {
-  const { immediateCallees } = createTraversalHelpers(db);
+export function allPathsBetween(db: IDatabase, startId: string, targetId: string, depthLimit = 20, edgeTypes?: string[]) {
+  const { immediateCallees } = createTraversalHelpers(db, edgeTypes);
   const paths: string[][] = [];
   const visited = new Set<string>();
 
@@ -169,6 +169,47 @@ export function allPathsBetween(db: IDatabase, startId: string, targetId: string
 
   dfs(startId, [startId]);
   return paths;
+}
+
+/**
+ * Find the shortest path from start -> target using BFS.
+ * Returns a single path (array of node ids) or null if unreachable.
+ */
+export function shortestPathBetween(
+  db: IDatabase,
+  startId: string,
+  targetId: string,
+  depthLimit = 20,
+  edgeTypes?: string[]
+) {
+  if (startId === targetId) return [startId];
+
+  const { immediateCallees } = createTraversalHelpers(db, edgeTypes);
+  const visited = new Set<string>([startId]);
+  const queue: Array<{ id: string; depth: number; path: string[] }> = [
+    { id: startId, depth: 0, path: [startId] }
+  ];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (current.depth >= depthLimit) continue;
+
+    const outgoing = immediateCallees(current.id);
+    for (const row of outgoing) {
+      const nextId = row.to_id;
+      if (visited.has(nextId)) continue;
+
+      const nextPath = [...current.path, nextId];
+      if (nextId === targetId) {
+        return nextPath;
+      }
+
+      visited.add(nextId);
+      queue.push({ id: nextId, depth: current.depth + 1, path: nextPath });
+    }
+  }
+
+  return null;
 }
 
 /**
