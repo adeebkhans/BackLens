@@ -1,0 +1,7 @@
+{
+  "name": "express-backend-demo",
+  "version": "0.0.1",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
