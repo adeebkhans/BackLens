@@ -4,6 +4,7 @@
  */
 import { memo, useState } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
+import { Box, Folder, Package } from 'lucide-react';
 import type { GraphNode, MethodNodeMeta, ClassNodeMeta } from '../../types/graph';
 import { isVsCodeEnvironment } from '../../api/createProvider';
 
@@ -205,7 +206,10 @@ export const CustomNode = memo(({ data, selected }: NodeProps<CustomNodeData>) =
         {/* Method ownership badge */}
         {className && (
           <div className="mb-1">
-            <Badge text={`⤷ ${className}`} color="purple" />
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border bg-purple-100 text-purple-700 border-purple-200">
+              <Box className="w-3 h-3" />
+              {className}
+            </span>
           </div>
         )}
 
@@ -218,22 +222,25 @@ export const CustomNode = memo(({ data, selected }: NodeProps<CustomNodeData>) =
 
         {/* File path (if available) */}
         {meta?.file && (
-          <div className="text-xs text-gray-500 truncate" title={meta.file}>
-            📁 {meta.file.split('/').slice(-2).join('/')}
+          <div className="text-xs text-gray-500 truncate inline-flex items-center gap-1" title={meta.file}>
+            <Folder className="w-3 h-3" />
+            {meta.file.split('/').slice(-2).join('/')}
           </div>
         )}
 
         {/* Module name for external nodes and external method calls */}
         {node.type === 'external' && meta?.moduleName && (
-          <div className="text-xs text-orange-600 font-medium">
-            📦 {meta.moduleName}
+          <div className="text-xs text-orange-600 font-medium inline-flex items-center gap-1">
+            <Package className="w-3 h-3" />
+            {meta.moduleName}
           </div>
         )}
 
         {/* Module name for external method placeholders */}
         {node.type === 'placeholder' && meta?.external && meta?.moduleName && (
-          <div className="text-xs text-orange-600 font-medium">
-            📦 from {meta.moduleName}
+          <div className="text-xs text-orange-600 font-medium inline-flex items-center gap-1">
+            <Package className="w-3 h-3" />
+            {meta.moduleName}
           </div>
         )}
 

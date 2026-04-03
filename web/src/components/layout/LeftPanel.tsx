@@ -2,6 +2,7 @@
  * Left Panel - Entry Points, Search, and Class Hierarchy
  */
 import { useState } from 'react';
+import { Box, Boxes, Circle, Flame, Zap, Braces } from 'lucide-react';
 import { useGraphStore } from '../../store/graphStore';
 import { getGraphProvider } from '../../api/createProvider';
 import type { HotspotNode, GraphNode } from '../../types/graph';
@@ -128,13 +129,13 @@ export function LeftPanel() {
   const getNodeTypeIcon = (type: string) => {
     switch (type) {
       case 'class':
-        return '📦';
+        return <Box className="w-3.5 h-3.5 text-purple-600" />;
       case 'method':
-        return '⚡';
+        return <Zap className="w-3.5 h-3.5 text-green-600" />;
       case 'function':
-        return 'ƒ';
+        return <Braces className="w-3.5 h-3.5 text-blue-600" />;
       default:
-        return '•';
+        return <Circle className="w-3 h-3 text-gray-500" />;
     }
   };
 
@@ -213,7 +214,10 @@ export function LeftPanel() {
             : 'text-gray-500 hover:text-gray-700'
             }`}
         >
-          🔥 Hotspots
+          <span className="inline-flex items-center gap-1">
+            <Flame className="w-3.5 h-3.5" />
+            Hotspots
+          </span>
         </button>
         <button
           onClick={() => setActiveTab('classes')}
@@ -222,7 +226,10 @@ export function LeftPanel() {
             : 'text-gray-500 hover:text-gray-700'
             }`}
         >
-          📦 Classes
+          <span className="inline-flex items-center gap-1">
+            <Boxes className="w-3.5 h-3.5" />
+            Classes
+          </span>
         </button>
       </div>
 
@@ -304,7 +311,7 @@ export function LeftPanel() {
                       <span className="text-gray-400 text-xs">
                         {hierarchy.expanded ? '▼' : '▶'}
                       </span>
-                      <span className="text-sm">📦</span>
+                      <Box className="w-3.5 h-3.5 text-purple-600" />
                       <span className="text-sm font-medium text-gray-900 truncate flex-1">
                         {hierarchy.class.label}
                       </span>
@@ -324,7 +331,7 @@ export function LeftPanel() {
                               className="w-full text-left px-3 py-1.5 pl-8 hover:bg-green-50 transition-colors flex items-center gap-2 text-xs"
                               disabled={loading}
                             >
-                              <span>⚡</span>
+                              <Zap className="w-3.5 h-3.5 text-green-600" />
                               <span className="text-gray-700 truncate flex-1">
                                 {method.label}
                               </span>

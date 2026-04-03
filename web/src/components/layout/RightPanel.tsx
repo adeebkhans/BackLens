@@ -2,6 +2,7 @@
  * Right Panel - Node Inspector
  */
 import { useGraphStore } from '../../store/graphStore';
+import { ArrowLeft, ArrowRight, Box, Boxes, Package, Wrench, Zap } from 'lucide-react';
 import type { ClassNodeMeta, MethodNodeMeta, FunctionNodeMeta } from '../../types/graph';
 
 // Badge component for consistent styling
@@ -102,13 +103,15 @@ export function RightPanel() {
             : type}
         </span>
         {isFramework && (
-          <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-            🔧 Framework
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+            <Wrench className="w-3.5 h-3.5" />
+            Framework
           </span>
         )}
         {meta?.external && (
-          <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-            📦 {meta.moduleName}
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+            <Package className="w-3.5 h-3.5" />
+            Module: {meta.moduleName}
           </span>
         )}
       </div>
@@ -122,7 +125,7 @@ export function RightPanel() {
       {methodMeta?.className && (
         <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
           <div className="flex items-center gap-2">
-            <span className="text-purple-500">📦</span>
+            <Box className="w-4 h-4 text-purple-600" />
             <div>
               <div className="text-xs text-purple-600 font-medium uppercase">Member of Class</div>
               <div className="text-sm font-semibold text-purple-900">{methodMeta.className}</div>
@@ -140,7 +143,10 @@ export function RightPanel() {
           </div>
           <div className="mt-2 max-h-20 overflow-auto">
             {classMeta.methods.slice(0, 5).map((method, i) => (
-              <div key={i} className="text-xs text-green-700 font-mono">⚡ {method}</div>
+              <div key={i} className="text-xs text-green-700 font-mono inline-flex items-center gap-1.5">
+                <Zap className="w-3 h-3" />
+                {method}
+              </div>
             ))}
             {classMeta.methods.length > 5 && (
               <div className="text-xs text-green-500">... and {classMeta.methods.length - 5} more</div>
@@ -246,7 +252,10 @@ export function RightPanel() {
           className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 text-sm transition-colors"
           disabled={loading}
         >
-          ← Expand Callers
+          <span className="inline-flex items-center gap-1.5">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Expand Callers
+          </span>
         </button>
 
         <button
@@ -254,7 +263,10 @@ export function RightPanel() {
           className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 text-sm transition-colors"
           disabled={loading}
         >
-          Expand Callees →
+          <span className="inline-flex items-center gap-1.5">
+            Expand Callees
+            <ArrowRight className="w-3.5 h-3.5" />
+          </span>
         </button>
 
         {/* Additional action for class nodes */}
@@ -264,7 +276,10 @@ export function RightPanel() {
             className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-400 text-sm transition-colors"
             disabled={loading}
           >
-            📦 Expand Methods
+            <span className="inline-flex items-center gap-1.5">
+              <Boxes className="w-3.5 h-3.5" />
+              Expand Methods
+            </span>
           </button>
         )}
       </div>
