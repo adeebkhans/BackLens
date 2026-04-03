@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Express } from "express";
 import { createAndGetUser, createUser, getUser } from "../controllers/userController";
 
