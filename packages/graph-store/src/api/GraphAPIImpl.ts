@@ -10,6 +10,7 @@ import {
     transitiveCalleesFlat as tCalleesFlatAlg,
     transitiveCalleesTree as tCalleesTreeAlg,
     allPathsBetween as allPathsAlg,
+    shortestPathBetween as shortestPathAlg,
     computeHotspots as hotspotsAlg
 } from "../algorithms/traversal";
 
@@ -251,7 +252,7 @@ export class GraphAPIImpl implements GraphAPI {
       const maxPaths = options?.maxPaths ?? 1000;
 
       // Algorithm finds all simple paths (raw IDs), respecting depth limits
-      const rawPaths = allPathsAlg(this.db, startId, targetId, depthLimit).slice(0, maxPaths);
+      const rawPaths = allPathsAlg(this.db, startId, targetId, depthLimit, opts.edgeTypes).slice(0, maxPaths);
 
       if (!(opts.expanded ?? this.DEFAULT_OPTIONS.expanded)) {
           return rawPaths.map(p => ({ rawPath: p })) as ChainResult[];
@@ -267,6 +268,28 @@ export class GraphAPIImpl implements GraphAPI {
 
           return { rawPath: p, expandedPath } as ChainResult;
       }) as ChainResult[];
+  }
+
+  shortestCallChain(startId: string, targetId: string, options?: QueryOptions & { depthLimit?: number }): ChainResult | null {
+      const opts = { ...this.DEFAULT_OPTIONS, ...options };
+      const depthLimit = options?.depthLimit ?? 20;
+
+      const rawPath = shortestPathAlg(this.db, startId, targetId, depthLimit, opts.edgeTypes);
+      if (!rawPath) {
+          return null;
+      }
+
+      if (!(opts.expanded ?? this.DEFAULT_OPTIONS.expanded)) {
+          return { rawPath } as ChainResult;
+      }
+
+      const expandedPath = rawPath
+          .map(id => filterNode(this.nodeStore.get(id) as PersistNode | null, opts))
+          .filter(notNull)
+          .map(n => toExpanded(n))
+          .filter(notNull) as ExpandedNode[];
+
+      return { rawPath, expandedPath } as ChainResult;
   }
 
   /* -------------------- hotspots (with filters) -------------------- */

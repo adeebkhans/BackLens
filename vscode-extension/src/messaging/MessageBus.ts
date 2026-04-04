@@ -137,6 +137,15 @@ export class MessageBus implements vscode.Disposable {
         return result;
       }
 
+      case 'getShortestPath': {
+        const result = api.shortestCallChain(
+          params.start as string,
+          params.target as string,
+          params.options as any
+        );
+        return result;
+      }
+
       case 'getFunctionsInFile': {
         const result = api.getFunctionsInFile(params.fileId as string, params.options as any);
         return result;

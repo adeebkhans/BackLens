@@ -540,6 +540,10 @@ function parseFileDetailed(filePath: string, rootBase: string): FileParseData {
           if (t.isIdentifier(c.object)) {
             receiver = c.object.name; // The object on which the method is called
             calleeObject = c.object.name; // Also set calleeObject for compatibility
+          } else if (t.isThisExpression(c.object)) {
+            // Handle instance calls like this.value()
+            receiver = "this";
+            calleeObject = "this";
           } else {
             // Handle chained method calls: res.status(400).json(...)
             // Walk down through CallExpression -> MemberExpression chains to find the root receiver.
@@ -939,8 +943,8 @@ export async function parseProject(rootPath: string): Promise<ParseResult> {
 async function main() {
   console.log("Parser started!");
   const targetArg = process.argv[2];
-  // default sample (project-relative)
-  const defaultSample = path.join(process.cwd(), "examples", "sample-node-express");
+  // default sample (repo-root examples folder)
+  const defaultSample = path.resolve(__dirname, "..", "..", "..", "examples", "express-backend-demo");
   const target = targetArg ?? defaultSample;
 
   // Check if the target path exists (prevents ENOENT errors)

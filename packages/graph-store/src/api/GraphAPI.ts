@@ -106,6 +106,11 @@ export type GraphAPI = {
         targetId: string,
         options?: QueryOptions & { depthLimit?: number; maxPaths?: number } // Options allow depth and path count limits
     ): ChainResult[];
+    shortestCallChain(
+        startId: string,
+        targetId: string,
+        options?: QueryOptions & { depthLimit?: number }
+    ): ChainResult | null;
 
     // Analysis
     hotspots(options?: QueryOptions & { top?: number }): HotspotEntry[]; // Returns highest scoring nodes by fan-in/fan-out

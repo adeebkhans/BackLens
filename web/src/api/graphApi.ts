@@ -132,10 +132,10 @@ export const graphApi = {
     target: string,
     options?: QueryOptions
   ): Promise<PathResult | null> {
-    const { data } = await api.get<ApiResponse<PathResult>>('/traversal/path/shortest', {
+    const { data } = await api.get<ApiResponse<PathResult | null>>('/traversal/path/shortest', {
       params: { start, target, ...serializeOptions(options) }
     });
-    return data.success ? data.data : null;
+    return data.data ?? null;
   },
 
   /**
@@ -171,7 +171,7 @@ export const graphApi = {
    */
   async getClasses(options?: QueryOptions): Promise<GraphNode[]> {
     const { data } = await api.get<ApiResponse<GraphNode[]>>('/nodes', {
-      params: { ...options, includeTypes: 'class' }
+      params: { ...serializeOptions(options), includeTypes: 'class' }
     });
     return data.data;
   },
@@ -182,7 +182,7 @@ export const graphApi = {
   async getMethodsOfClass(classId: string, options?: QueryOptions): Promise<CallersCalleesResponse> {
     const { data } = await api.get<ApiResponse<CallersCalleesResponse>>(
       `/calls/${encodeURIComponent(classId)}/methods`,
-      { params: options }
+      { params: serializeOptions(options) }
     );
     return data.data;
   },
@@ -193,7 +193,7 @@ export const graphApi = {
   async getClassesInFile(fileId: string, options?: QueryOptions): Promise<CallersCalleesResponse> {
     const { data } = await api.get<ApiResponse<CallersCalleesResponse>>(
       `/calls/${encodeURIComponent(fileId)}/classes`,
-      { params: options }
+      { params: serializeOptions(options) }
     );
     return data.data;
   },
@@ -203,9 +203,15 @@ export const graphApi = {
    * Optionally filter to only show method_call edges
    */
   async getMethodCallers(methodId: string, options?: QueryOptions & { onlyMethodCalls?: boolean }): Promise<CallersCalleesResponse> {
+    const edgeTypes = options?.onlyMethodCalls ? ['method_call'] : options?.edgeTypes;
     const { data } = await api.get<ApiResponse<CallersCalleesResponse>>(
       `/calls/${encodeURIComponent(methodId)}/callers`,
-      { params: { ...options, edgeType: options?.onlyMethodCalls ? 'method_call' : undefined } }
+      {
+        params: serializeOptions({
+          ...options,
+          edgeTypes
+        })
+      }
     );
     return data.data;
   },
@@ -215,9 +221,16 @@ export const graphApi = {
    * Optionally filter by edge type
    */
   async getMethodCallees(methodId: string, options?: QueryOptions & { onlyMethodCalls?: boolean; hideFramework?: boolean }): Promise<CallersCalleesResponse> {
+    const edgeTypes = options?.onlyMethodCalls ? ['method_call'] : options?.edgeTypes;
     const { data } = await api.get<ApiResponse<CallersCalleesResponse>>(
       `/calls/${encodeURIComponent(methodId)}/callees`,
-      { params: { ...options, edgeType: options?.onlyMethodCalls ? 'method_call' : undefined, hideFramework: options?.hideFramework } }
+      {
+        params: serializeOptions({
+          ...options,
+          edgeTypes,
+          hideFramework: options?.hideFramework
+        })
+      }
     );
     return data.data;
   },
@@ -226,10 +239,25 @@ export const graphApi = {
    * Get class hierarchy (classes with their methods) for a file
    */
   async getFileClassHierarchy(fileId: string): Promise<{ classes: Array<{ class: GraphNode; methods: GraphNode[] }>; functions: GraphNode[] }> {
-    const { data } = await api.get<ApiResponse<{ classes: Array<{ class: GraphNode; methods: GraphNode[] }>; functions: GraphNode[] }>>(
-      `/semantic/${encodeURIComponent(fileId)}/hierarchy`
+    const [classesResult, functionsResult] = await Promise.all([
+      this.getClassesInFile(fileId, { expanded: true }),
+      this.getFunctionsInFile(fileId, { expanded: true, includeTypes: ['function'] })
+    ]);
+
+    const classes = await Promise.all(
+      classesResult.expanded.map(async (classNode) => {
+        const methodsResult = await this.getMethodsOfClass(classNode.id, { expanded: true });
+        return {
+          class: classNode,
+          methods: methodsResult.expanded
+        };
+      })
     );
-    return data.data;
+
+    return {
+      classes,
+      functions: functionsResult.expanded
+    };
   },
 
   /**
