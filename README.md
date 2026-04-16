@@ -1,4 +1,11 @@
-﻿# BackLens
+﻿<p align="center">
+   <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/assests/whiteLogo.png" />
+      <img src="docs/assests/icon.jpg" alt="BackLens" width="240" />
+   </picture>
+</p>
+
+# BackLens
 
 BackLens helps you explore codebases as a semantic call graph inside VS Code and on the web.
 

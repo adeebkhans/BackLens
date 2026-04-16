@@ -6,8 +6,8 @@ It analyzes your project locally, builds a graph, and lets you inspect callers/c
 
 <p align="center">
 	<picture>
-		<source media="(prefers-color-scheme: dark)" srcset="../docs/assests/whiteLogo.png" />
-		<img src="images/icon.png" alt="BackLens" width="240" />
+		<source media="(prefers-color-scheme: dark)" srcset="https://github.com/adeebkhans/BackLens/raw/main/docs/assests/whiteLogo.png" />
+		<img src="https://raw.githubusercontent.com/adeebkhans/BackLens/refs/heads/main/vscode-extension/images/icon.png" alt="BackLens" width="240" />
 	</picture>
 </p>
 
