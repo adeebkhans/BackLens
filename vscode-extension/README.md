@@ -5,10 +5,7 @@ BackLens helps you understand backend codebases as an interactive call graph dir
 It analyzes your project locally, builds a graph, and lets you inspect callers/callees, hotspots, and dependencies, then jump back to source in one click.
 
 <p align="center">
-	<picture>
-		<source media="(prefers-color-scheme: dark)" srcset="https://github.com/adeebkhans/BackLens/raw/main/docs/assests/whiteLogo.png" />
-		<img src="https://raw.githubusercontent.com/adeebkhans/BackLens/refs/heads/main/vscode-extension/images/icon.png" alt="BackLens" width="240" />
-	</picture>
+	<img src="https://github.com/adeebkhans/BackLens/raw/main/docs/assests/whiteLogo.png" alt="BackLens" width="240" />
 </p>
 
 ## Why BackLens
