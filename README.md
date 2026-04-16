@@ -47,6 +47,9 @@ Current UI snapshots:
 ### Framework Call Graph View
 ![Framework call graph view](docs/assests/framework-call-graph.png)
 
+### Go-to-Source Navigation (GIF)
+![Go-to-Source navigation](docs/assests/gotosource.gif)
+
 ## Supported Languages / Scope
 Current strongest support:
 
@@ -69,6 +72,15 @@ See [docs/limitations.md](docs/limitations.md) for details and caveats.
 3. Open BackLens: Show Graph.
 4. Search nodes, expand callers/callees, and inspect node details.
 5. Use go-to-source actions to jump from graph nodes to code.
+
+## Commands
+
+- `BackLens: Analyze Folder` (`backlens.analyzeFolder`)
+- `BackLens: Re-analyze Folder` (`backlens.reanalyzeFolder`)
+- `BackLens: Show Graph` (`backlens.showGraph`)
+- `BackLens: Refresh` (`backlens.refreshExplorer`)
+- `BackLens: Close Project` (`backlens.closeProject`)
+- `BackLens: Go to Source` (`backlens.goToNode`)
 
 ## Quick Start
 Fastest path to first result:
