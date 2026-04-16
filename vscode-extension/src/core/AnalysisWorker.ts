@@ -39,6 +39,7 @@ export class AnalysisWorker {
 
     return new Promise((resolve) => {
       progress.report({ message: 'Starting analysis...' });
+      let lastStderr = '';
 
       // Determine the path to the worker script and the extension root.
       const workerScript = path.join(__dirname, 'workers', 'analyzeWorker.js');
@@ -95,7 +96,9 @@ export class AnalysisWorker {
       // Capture stderr output from worker
       if (this.process.stderr) {
         this.process.stderr.on('data', (data) => {
-          console.error('[Worker stderr]:', data.toString());
+          const chunk = data.toString();
+          lastStderr = chunk.trim() || lastStderr;
+          console.error('[Worker stderr]:', chunk);
         });
       }
 
@@ -121,7 +124,8 @@ export class AnalysisWorker {
 
       this.process.on('exit', (code) => {
         if (code !== 0 && code !== null) {
-          resolve({ success: false, error: `Worker exited with code ${code}` });
+          const details = lastStderr ? `: ${lastStderr}` : '';
+          resolve({ success: false, error: `Worker exited with code ${code}${details}` });
         }
       });
     });

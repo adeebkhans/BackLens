@@ -10,16 +10,20 @@ import * as path from 'path';
 import type { GraphAPI, IDatabase } from '@backlens/graph-store'; // Import types only for now
 import { ProjectRegistry, type RegisteredProject } from '../core/ProjectRegistry';
 
+// Statically import only the WASM-safe entry points avoiding root export
+import { GraphAPIImpl } from '@backlens/graph-store/dist/api/GraphAPIImpl';
+import { NodeStore } from '@backlens/graph-store/dist/persistence/NodeStore';
+import { EdgeStore } from '@backlens/graph-store/dist/persistence/EdgeStore';
+import { createWasmSqliteAdapter } from '@backlens/graph-store/dist/persistence/WasmSqliteAdapter';
+
 /**
  * Dynamically loads the GraphAPI and its database connection.
  */
 async function loadGraphAPI(dbPath: string): Promise<{ api: GraphAPI; db: IDatabase }> {
-  // Dynamic import to avoid bundling issues
-  // Importing '@backlens/graph-store' might trigger the loading of better-sqlite3 (native module).
-  // If we import it at the top level, VS Code might crash immediately upon startup.
-  const { createGraphAPIFromDb, createWasmSqliteAdapter } = await import('@backlens/graph-store');
-
-  const wasmPath = path.join(__dirname, 'sql-wasm.wasm');
+  // __dirname is dist/services/, but sql-wasm.wasm is copied to dist/ root
+  // So we need to go up one level to find it
+  const wasmPath = path.join(__dirname, '..', 'sql-wasm.wasm');
+  
   let wasmBinary: ArrayBuffer | undefined;
 
   if (fs.existsSync(wasmPath)) {
@@ -28,7 +32,7 @@ async function loadGraphAPI(dbPath: string): Promise<{ api: GraphAPI; db: IDatab
   }
 
   const db = await createWasmSqliteAdapter(dbPath, { wasmBinary, wasmPath });
-  const api = createGraphAPIFromDb(db);
+  const api = new GraphAPIImpl(db, new NodeStore(db), new EdgeStore(db));
 
   return { api, db };
 }

@@ -8,7 +8,8 @@
 // process, VS Code would completely freeze until analysis is done
 
 import { parseProject } from '@backlens/parser';
-import { buildGraph, saveGraphWasm } from '@backlens/graph-store';
+import { buildGraph } from '@backlens/graph-store/dist/core-ir-processor/buildGraph';
+import { saveGraphWasm } from '@backlens/graph-store/dist/persistence/saveToDB';
 
 process.on('message', async (msg: any) => {
   if (msg.type !== 'start') { return; }
