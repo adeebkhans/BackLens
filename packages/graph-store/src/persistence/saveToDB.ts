@@ -1,5 +1,4 @@
 import type { Graph } from "../core-ir-processor/types";
-import { BetterSqliteAdapter } from "./BetterSqliteAdapter"; // Native SQLite adapter
 import { WasmSqliteAdapter } from "./WasmSqliteAdapter"; // WebAssembly SQLite adapter for VS Code extension
 import { NodeStore } from "./NodeStore";
 import { EdgeStore } from "./EdgeStore";
@@ -25,6 +24,7 @@ export async function saveGraphToDb(
     if (useWasm) {
         db = await WasmSqliteAdapter.create(dbPath); // await becuase WASM binaries load asynchronously 
     } else {
+        const { BetterSqliteAdapter } = await import("./BetterSqliteAdapter.js");
         db = new BetterSqliteAdapter(dbPath); // new as Native C++ bindings load synchronously and instantly.
     }
 
