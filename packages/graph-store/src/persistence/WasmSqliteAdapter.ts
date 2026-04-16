@@ -121,9 +121,6 @@ export class WasmSqliteAdapter implements IDatabase {
      * This is async because sql.js needs to be dynamically imported and initialized.
      */
     static async create(filePath: string, options: WasmSqliteOptions = {}): Promise<WasmSqliteAdapter> {
-        // Dynamic import of sql.js
-        const initSqlJs = (await import('sql.js')).default;
-
         // Try to load fs for Node.js environments first
         let fs: typeof import('fs') | null = null;
         let pathModule: typeof import('path') | null = null;
@@ -147,7 +144,36 @@ export class WasmSqliteAdapter implements IDatabase {
             fs = null;
         }
 
-        // Initialize sql.js with WASM binary from node_modules
+        let initSqlJs: any;
+
+        // Load the sql.js JS loader from copied extension assets at runtime.
+        // This avoids bundling sql.js into a webpack chunk that is fragile in VS Code workers.
+        if (fs && pathModule) {
+            const possibleLoaderPaths = [
+                pathModule.join(__dirname, 'sql-wasm.js'),
+                pathModule.join(__dirname, '..', 'sql-wasm.js'),
+                pathModule.join(__dirname, '..', '..', 'dist', 'sql-wasm.js'),
+            ];
+
+            for (const loaderPath of possibleLoaderPaths) {
+                if (fs.existsSync(loaderPath)) {
+                    const loaderModule = eval('require')(loaderPath);
+                    // sql-wasm.js can be exposed as either a callable CommonJS export
+                    // or a default-exported factory depending on how it is packaged.
+                    initSqlJs =
+                        typeof loaderModule === 'function'
+                            ? loaderModule
+                            : loaderModule?.default;
+                    break;
+                }
+            }
+        }
+
+        if (typeof initSqlJs !== 'function') {
+            throw new Error('Could not load sql-wasm.js factory function');
+        }
+
+        // Initialize sql.js with WASM binary from copied assets or provided options
         let SQL: any;
         let wasmBinary: ArrayBuffer | undefined = options.wasmBinary;
 
@@ -162,9 +188,19 @@ export class WasmSqliteAdapter implements IDatabase {
         // Otherwise: Look for sql-wasm.wasm in node_modules or common locations 
         if (!wasmBinary && fs && pathModule) {
             try {
-                const wasmPath = require.resolve('sql.js/dist/sql-wasm.wasm');
-                const wasmBuffer = fs.readFileSync(wasmPath);
-                wasmBinary = wasmBuffer.buffer.slice(wasmBuffer.byteOffset, wasmBuffer.byteOffset + wasmBuffer.byteLength); // Node js buffer to JS Array buffer
+                const possibleWasmPaths = [
+                    pathModule.join(__dirname, 'sql-wasm.wasm'),
+                    pathModule.join(__dirname, '..', 'sql-wasm.wasm'),
+                    pathModule.join(__dirname, '..', '..', 'dist', 'sql-wasm.wasm'),
+                ];
+
+                for (const wasmPath of possibleWasmPaths) {
+                    if (fs.existsSync(wasmPath)) {
+                        const wasmBuffer = fs.readFileSync(wasmPath);
+                        wasmBinary = wasmBuffer.buffer.slice(wasmBuffer.byteOffset, wasmBuffer.byteOffset + wasmBuffer.byteLength); // Node js buffer to JS Array buffer
+                        break;
+                    }
+                }
             } catch (err) {
                 // Fallback: Check common locations
                 const possiblePaths = [

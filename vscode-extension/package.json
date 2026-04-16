@@ -1,10 +1,18 @@
 {
   "name": "backlens",
   "displayName": "BackLens",
-  "icon": "images/icon.png",
+  "icon": "images/icon.jpg",
   "description": "Interactive code graph visualization and architecture analysis for understanding complex codebases.",
-  "version": "0.2.0",
-  "publisher": "backlens",
+  "version": "0.1.0",
+  "publisher": "adeebkhan",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adeebkhans/backlens.git"
+  },
+  "homepage": "https://github.com/adeebkhans/backlens",
+  "bugs": {
+    "url": "https://github.com/adeebkhans/backlens/issues"
+  },
   "engines": {
     "vscode": "^1.108.1"
   },
@@ -25,7 +33,7 @@
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
-      {   
+      {
         "command": "backlens.analyzeFolder",
         "title": "Analyze Folder",
         "category": "BackLens",
@@ -135,9 +143,10 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run package",
+    "vsix:package": "vsce package --no-dependencies",
     "compile": "webpack",
     "watch": "webpack --watch",
-    "package": "webpack --mode production --devtool hidden-source-map",
+    "package": "webpack --mode none --devtool hidden-source-map",
     "rebuild:sqlite": "electron-rebuild -f -w better-sqlite3 -m ./node_modules/better-sqlite3",
     "prebuild": "pnpm --filter web build && node scripts/copyWebview.js",
     "compile-tests": "tsc -p . --outDir out",
@@ -147,6 +156,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@vscode/vsce": "^3.9.0",
     "@electron/rebuild": "^3.7.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",

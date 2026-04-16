@@ -27,9 +27,7 @@ const extensionConfig = {
     vscode: 'commonjs vscode', // the vscode-module is created on-the-fly and must be excluded
     // Keep better-sqlite3 external - we use sql.js (WASM) at runtime,
     // but the graph-store package still has it as an optional export
-    'better-sqlite3': 'commonjs better-sqlite3',
-    // sql.js must be external - it doesn't bundle correctly with webpack
-    'sql.js': 'commonjs sql.js'
+    'better-sqlite3': 'commonjs better-sqlite3'
   },
   resolve: {
     // support reading TypeScript and JavaScript files, 📖 -> https://github.com/TypeStrong/ts-loader
@@ -63,6 +61,10 @@ const extensionConfig = {
     // Copy sql.js WASM binary to dist folder
     new CopyPlugin({
       patterns: [
+        {
+          from: path.resolve(__dirname, 'node_modules/sql.js/dist/sql-wasm.js'),
+          to: 'sql-wasm.js'
+        },
         {
           from: path.resolve(__dirname, 'node_modules/sql.js/dist/sql-wasm.wasm'),
           to: 'sql-wasm.wasm'

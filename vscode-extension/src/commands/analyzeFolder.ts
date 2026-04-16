@@ -5,7 +5,7 @@ import { AnalysisWorker } from '../core/AnalysisWorker';
 import { GraphService } from '../services/GraphService';
 
 /**
- * Analyzes a selected folder: detects if it's a project, runs analysis, registers it
+ * Analyzes a selected folder: detects if it's a project, runs analysis, registers it.
  */
 export async function analyzeFolder(
   uri: vscode.Uri | undefined, // The folder user right-clicked (can be undefined if run via Command Palette)
@@ -13,6 +13,7 @@ export async function analyzeFolder(
   graphService: GraphService  // Dependency Injection: The database service
 ): Promise<void> {
   let folderPath = uri?.fsPath;
+  let stage = 'initializing';
 
   // If triggered from our Sidebar TreeView (Available Workspaces list) instead of the File Explorer, 
   // 'uri' is actually a TreeItem object. We scavenge it for the underlying folder path.
@@ -37,9 +38,8 @@ export async function analyzeFolder(
   }
 
   try {
-    // Declare variables that will be used outside withProgress
-    let projectName: string = '';
-    let projectRoot: string = '';
+    let projectName = '';
+    let projectRoot = '';
     let result: any = null;
 
     // UI FEEDBACK (Show progress while analyzing)
@@ -50,7 +50,7 @@ export async function analyzeFolder(
         title: 'Analyzing project...'
       },
       async (progress) => {
-        // Tell user what's happening. 'increment: 0' initializes the bar.
+        stage = 'detecting project root';
         progress.report({ increment: 0, message: 'Detecting project root...' });
 
         // Find project root
@@ -82,6 +82,7 @@ export async function analyzeFolder(
         projectRoot = detectedRoot.path; // e.g., "c:\projects\my-app"
         projectName = detectedRoot.name; // e.g., "my-app"
 
+        stage = 'running worker analysis';
         progress.report({ increment: 20, message: 'Running analysis...' });
 
         // Generate database path in VS Code's global storage area
@@ -97,6 +98,7 @@ export async function analyzeFolder(
           return;
         }
 
+        stage = 'registering project';
         progress.report({ increment: 70, message: 'Registering project...' });
 
         // Register in registry (Save metadata to 'projectRegistry')
@@ -108,6 +110,7 @@ export async function analyzeFolder(
           lastAnalyzed: Date.now()
         });
 
+        stage = 'loading graph service';
         progress.report({ increment: 10, message: 'Loading into graph service...' });
 
         // Load into GraphService
@@ -136,6 +139,9 @@ export async function analyzeFolder(
       }
     }
   } catch (error: any) {
-    vscode.window.showErrorMessage(`Error analyzing folder: ${error.message}`);
+    const rawMessage = error?.message ?? String(error);
+    const stackTop = typeof error?.stack === 'string' ? error.stack.split('\n').slice(0, 4).join(' | ') : undefined;
+    const details = stackTop ? ` [${stage}] ${stackTop}` : ` [${stage}]`;
+    vscode.window.showErrorMessage(`Error analyzing folder: ${rawMessage}${details}`);
   }
 }
