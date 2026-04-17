@@ -37,17 +37,28 @@ Instead of tracing call flows manually across many files, you can explore them v
 
 Current UI snapshots:
 
-### Hotspots and Method Expansion
-![Hotspots and method expansion](https://raw.githubusercontent.com/adeebkhans/backlens/main/vscode-extension/images/hotspots-method-expansion.png)
-
-### Class Hierarchy and Inspector
-![Class hierarchy and inspector](https://raw.githubusercontent.com/adeebkhans/backlens/main/vscode-extension/images/classes-hierarchy-inspector.png)
-
-### Framework Call Graph View
-![Framework call graph view](https://raw.githubusercontent.com/adeebkhans/backlens/main/vscode-extension/images/framework-call-graph.png)
-
-### Go-to-Source Navigation
-![Go-to-Source navigation](https://raw.githubusercontent.com/adeebkhans/backlens/main/vscode-extension/images/gotosource.gif)
+<table>
+	<tr>
+		<td width="50%" align="center">
+			<strong>Hotspots and Method Expansion</strong><br />
+			<img src="https://raw.githubusercontent.com/adeebkhans/backlens/main/vscode-extension/images/hotspots-method-expansion.png" alt="Hotspots and method expansion" />
+		</td>
+		<td width="50%" align="center">
+			<strong>Class Hierarchy and Inspector</strong><br />
+			<img src="https://raw.githubusercontent.com/adeebkhans/backlens/main/vscode-extension/images/classes-hierarchy-inspector.png" alt="Class hierarchy and inspector" />
+		</td>
+	</tr>
+	<tr>
+		<td width="50%" align="center">
+			<strong>Framework Call Graph View</strong><br />
+			<img src="https://raw.githubusercontent.com/adeebkhans/backlens/main/vscode-extension/images/framework-call-graph.png" alt="Framework call graph view" />
+		</td>
+		<td width="50%" align="center">
+			<strong>Go-to-Source Navigation</strong><br />
+			<img src="https://raw.githubusercontent.com/adeebkhans/backlens/main/vscode-extension/images/gotosource.gif" alt="Go-to-Source navigation" />
+		</td>
+	</tr>
+</table>
 
 ## Commands
 
