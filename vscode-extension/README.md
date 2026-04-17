@@ -2,6 +2,10 @@
 
 BackLens helps you understand backend codebases as an interactive call graph directly inside VS Code.
 
+[![VS Code Marketplace Version](https://vsmarketplacebadges.dev/version-short/AdeebKhan.backlens.svg)](https://marketplace.visualstudio.com/items?itemName=AdeebKhan.backlens)
+
+Install the extension: [BackLens on VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=AdeebKhan.backlens)
+
 It analyzes your project locally, builds a graph, and lets you inspect callers/callees, hotspots, and dependencies, then jump back to source in one click.
 
 <p align="center">
