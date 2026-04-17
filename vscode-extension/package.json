@@ -3,7 +3,7 @@
   "displayName": "BackLens",
   "icon": "images/icon.jpg",
   "description": "Interactive code graph visualization and architecture analysis for understanding complex codebases.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "adeebkhan",
   "repository": {
     "type": "git",
