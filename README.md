@@ -9,6 +9,10 @@
 
 BackLens helps you explore codebases as a semantic call graph inside VS Code and on the web.
 
+[![VS Code Marketplace Version](https://vsmarketplacebadges.dev/version-short/AdeebKhan.backlens.svg)](https://marketplace.visualstudio.com/items?itemName=AdeebKhan.backlens)
+
+Install the extension: [BackLens on VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=AdeebKhan.backlens)
+
 ## What is BackLens?
 BackLens is a static code intelligence platform for backend-oriented codebases.
 
@@ -45,17 +49,28 @@ It is designed for understanding unfamiliar repositories and reducing time spent
 ## Demo / Screenshots
 Current UI snapshots:
 
-### Hotspots and Method Expansion
-![Hotspots and method expansion](docs/assests/hotspots-method-expansion.png)
-
-### Class Hierarchy and Inspector
-![Class hierarchy and inspector](docs/assests/classes-hierarchy-inspector.png)
-
-### Framework Call Graph View
-![Framework call graph view](docs/assests/framework-call-graph.png)
-
-### Go-to-Source Navigation (GIF)
-![Go-to-Source navigation](docs/assests/gotosource.gif)
+<table>
+   <tr>
+      <td width="50%" align="center">
+         <strong>Hotspots and Method Expansion</strong><br />
+         <img src="docs/assests/hotspots-method-expansion.png" alt="Hotspots and method expansion" />
+      </td>
+      <td width="50%" align="center">
+         <strong>Class Hierarchy and Inspector</strong><br />
+         <img src="docs/assests/classes-hierarchy-inspector.png" alt="Class hierarchy and inspector" />
+      </td>
+   </tr>
+   <tr>
+      <td width="50%" align="center">
+         <strong>Framework Call Graph View</strong><br />
+         <img src="docs/assests/framework-call-graph.png" alt="Framework call graph view" />
+      </td>
+      <td width="50%" align="center">
+         <strong>Go-to-Source Navigation (GIF)</strong><br />
+         <img src="docs/assests/gotosource.gif" alt="Go-to-Source navigation" />
+      </td>
+   </tr>
+</table>
 
 ## Supported Languages / Scope
 Current strongest support:
